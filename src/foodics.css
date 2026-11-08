@@ -1,0 +1,1800 @@
+.foodics-nav {
+  --foodics-gold: #f0bf58;
+  min-width: 0;
+  margin: 4px 0 7px;
+  border: 1px solid rgba(240, 191, 88, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.055);
+  overflow: hidden;
+}
+
+.foodics-nav-heading {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+aside .foodics-nav button {
+  color: #d7e3fa;
+}
+
+aside .foodics-nav-main {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  padding: 4px 7px;
+  border-radius: 0;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.foodics-nav-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(240, 191, 88, 0.14);
+  color: #f5ca70;
+}
+
+.foodics-nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+aside .foodics-nav-toggle {
+  display: grid;
+  width: 29px;
+  min-height: 34px;
+  flex: 0 0 29px;
+  place-items: center;
+  padding: 0;
+  color: #adc1e3;
+}
+
+aside .foodics-nav.is-active,
+aside .foodics-nav:hover {
+  border-color: rgba(240, 191, 88, 0.32);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.foodics-nav-sections {
+  display: grid;
+  gap: 2px;
+  padding: 0 5px 6px 12px;
+}
+
+aside .foodics-nav-project {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  color: #d7e3fa;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+}
+
+aside .foodics-nav-project:hover,
+aside .foodics-nav-project.selected {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.foodics-project-mark {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--project-color) 45%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--project-color) 22%, transparent);
+  color: var(--project-color);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.foodics-nav-project-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foodics-nav-project-chevron {
+  color: #93a8cb;
+}
+
+.foodics-nav-project-sections {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 5px 19px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(240, 191, 88, 0.25);
+}
+
+aside .foodics-nav-reports {
+  margin: 1px 0 5px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+aside .foodics-nav-item {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 9px;
+  color: #b8c9e6;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+aside .foodics-nav-item > svg {
+  flex: 0 0 15px;
+  color: #93a8cb;
+}
+
+aside .foodics-nav-item:hover,
+aside .foodics-nav-item.selected {
+  background: rgba(240, 191, 88, 0.14);
+  color: #fff;
+}
+
+aside .foodics-nav-item.selected > svg {
+  color: #f5ca70;
+}
+
+.foodics-nav-mobile {
+  border-color: #e6eaf1;
+  background: #f8fafc;
+}
+
+.foodics-nav-mobile .foodics-nav-heading {
+  min-height: 48px;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile button {
+  color: #334155;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-main {
+  min-height: 48px;
+  font-size: 14px;
+}
+
+.foodics-nav-mobile .foodics-nav-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  background: #fff5df;
+  color: #a76b07;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-toggle {
+  width: 38px;
+  min-height: 42px;
+  flex-basis: 38px;
+  color: #64748b;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project {
+  width: 100%;
+  min-height: 42px;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project:hover,
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project.selected {
+  background: #f1f5f9;
+  color: #17355b;
+}
+
+.foodics-nav-mobile .foodics-project-mark {
+  width: 29px;
+  height: 29px;
+  flex-basis: 29px;
+  font-size: 12px;
+}
+
+.foodics-nav-mobile .foodics-nav-project-sections {
+  margin-left: 24px;
+  padding-left: 10px;
+  border-left-color: #e6d5aa;
+}
+
+.foodics-nav-mobile .foodics-nav-project-chevron {
+  color: #64748b;
+}
+
+.foodics-nav-mobile .foodics-nav-sections {
+  padding: 0 8px 8px 15px;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item.selected {
+  background: #fff1cf;
+  color: #825306;
+}
+
+.mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item.selected > svg {
+  color: #a76b07;
+}
+
+.foodics-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.foodics-workspace-card {
+  display: flex;
+  min-height: 174px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 17px;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #fff;
+  color: #273951;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.foodics-workspace-card:hover {
+  transform: translateY(-2px);
+  border-color: #c7d4e4;
+  box-shadow: 0 9px 22px rgba(20, 43, 73, 0.08);
+}
+
+.foodics-workspace-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  margin-bottom: 13px;
+  border: 1px solid #e9edf3;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #49688e;
+}
+
+.foodics-workspace-card-title {
+  color: #20334e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.foodics-workspace-card-description {
+  margin-top: 5px;
+  color: #7d899a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.foodics-workspace-card-footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 14px;
+  color: #6f7e93;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.foodics-project-card {
+  display: flex;
+  min-height: 104px;
+  align-items: center;
+  gap: 13px;
+  padding: 17px;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #fff;
+  color: #273951;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.foodics-project-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--project-color) 45%, white);
+  box-shadow: 0 9px 22px rgba(20, 43, 73, 0.08);
+}
+
+.foodics-project-card-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--project-color) 28%, white);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--project-color) 10%, white);
+  color: var(--project-color);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.foodics-project-card-content {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+.foodics-project-card-content strong {
+  color: #20334e;
+  font-size: 13px;
+}
+
+.foodics-project-card-content small,
+.foodics-project-card-count {
+  color: #8793a4;
+  font-size: 9px;
+}
+
+.foodics-project-card-arrow {
+  color: #9aa6b5;
+}
+
+.foodics-page {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 30px clamp(18px, 3vw, 44px) 48px;
+  color: #18263c;
+}
+
+.foodics-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 22px;
+}
+
+.foodics-page-heading {
+  min-width: 0;
+}
+
+.foodics-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #9a6b16;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+}
+
+.foodics-page-heading h1 {
+  margin: 7px 0 5px;
+  color: #12223b;
+  font-size: clamp(25px, 3vw, 33px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.foodics-page-heading p {
+  max-width: 680px;
+  margin: 0;
+  color: #63728a;
+  font-size: 13px;
+}
+
+.foodics-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.foodics-button:active {
+  transform: translateY(1px);
+}
+
+.foodics-button.primary {
+  background: #17355b;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(23, 53, 91, 0.14);
+}
+
+.foodics-button.primary:hover {
+  background: #214774;
+}
+
+.foodics-button.secondary {
+  border-color: #dce3ed;
+  background: #fff;
+  color: #526178;
+}
+
+.foodics-button.secondary:hover {
+  background: #f8fafc;
+}
+
+.foodics-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.foodics-storage-note,
+.foodics-error,
+.foodics-success,
+.foodics-account-notice,
+.foodics-vat-guidance,
+.foodics-document-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #58677c;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.foodics-storage-note {
+  margin-bottom: 15px;
+}
+
+.foodics-storage-note > svg {
+  margin-top: 1px;
+  color: #798ba5;
+}
+
+.foodics-storage-note strong {
+  color: #34445c;
+}
+
+.foodics-error,
+.foodics-success {
+  align-items: center;
+  margin: 0 0 14px;
+}
+
+.foodics-error {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #a72b2b;
+}
+
+.foodics-error > svg {
+  flex: 0 0 auto;
+}
+
+.foodics-error > span {
+  flex: 1;
+}
+
+.foodics-error button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.foodics-success {
+  border-color: #bbebd2;
+  background: #f1fbf5;
+  color: #197346;
+}
+
+.foodics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 15px;
+}
+
+.foodics-summary-card {
+  display: flex;
+  min-height: 98px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 15px 17px;
+  border: 1px solid #e7ebf1;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.025);
+}
+
+.foodics-summary-card > span {
+  color: #748198;
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.foodics-summary-card > strong {
+  color: #182c49;
+  font-size: 24px;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.foodics-summary-card > small {
+  color: #94a0b1;
+  font-size: 10px;
+}
+
+.foodics-summary-card > .foodics-summary-review,
+.foodics-summary-card > .foodics-summary-label {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.foodics-summary-card > .foodics-summary-review {
+  color: #a86e13;
+}
+
+.foodics-summary-card > .foodics-summary-label {
+  color: #203d62;
+}
+
+.foodics-panel {
+  overflow: hidden;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+}
+
+.foodics-panel-header {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 19px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.foodics-panel-header h2 {
+  margin: 0 0 3px;
+  color: #1d2c43;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.foodics-panel-header p {
+  margin: 0;
+  color: #8793a4;
+  font-size: 10.5px;
+}
+
+.foodics-search {
+  display: flex;
+  width: min(270px, 100%);
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #e2e7ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #8995a5;
+}
+
+.foodics-search:focus-within {
+  border-color: #8ca4c2;
+  box-shadow: 0 0 0 3px rgba(48, 89, 139, 0.08);
+}
+
+.foodics-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #26364d;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.foodics-search button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #7d8999;
+  cursor: pointer;
+}
+
+.foodics-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.foodics-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 11px;
+}
+
+.foodics-table th {
+  height: 38px;
+  padding: 0 14px;
+  border-bottom: 1px solid #edf0f4;
+  background: #fafbfd;
+  color: #79869a;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.foodics-table td {
+  min-height: 48px;
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #536177;
+  vertical-align: middle;
+}
+
+.foodics-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.foodics-table tbody tr:hover {
+  background: #fcfdff;
+}
+
+.foodics-table td strong {
+  color: #26364d;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.foodics-notes-cell {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foodics-sub-cell {
+  display: block;
+  max-width: 230px;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #929eae;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foodics-muted {
+  color: #a0a9b5;
+  font-size: 10px;
+}
+
+.foodics-file-link {
+  display: inline-flex;
+  max-width: 250px;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #345b88;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 550;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.foodics-file-link:hover {
+  color: #173b67;
+  text-decoration: underline;
+}
+
+.foodics-file-link > svg {
+  flex: 0 0 auto;
+}
+
+.foodics-file-link small {
+  flex: 0 0 auto;
+  color: #95a0ae;
+  font-size: 9px;
+}
+
+.foodics-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.foodics-icon-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #778499;
+  cursor: pointer;
+}
+
+.foodics-icon-button:hover {
+  border-color: #e2e7ee;
+  background: #f8fafc;
+  color: #253957;
+}
+
+.foodics-icon-button.danger:hover {
+  border-color: #fee2e2;
+  background: #fff7f7;
+  color: #c24141;
+}
+
+.foodics-small-button {
+  min-height: 27px;
+  padding: 0 8px;
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  background: #fff;
+  color: #46607f;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.foodics-small-button:hover {
+  border-color: #b8c9dd;
+  background: #f7faff;
+}
+
+.foodics-status,
+.foodics-classification,
+.foodics-account-type {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #68778c;
+  font-size: 9px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.foodics-status.complete {
+  border-color: #cdebd9;
+  background: #f1fbf5;
+  color: #28734d;
+}
+
+.foodics-status.scheduled {
+  border-color: #dbe7f6;
+  background: #f2f7fd;
+  color: #496b96;
+}
+
+.foodics-status.due-soon {
+  border-color: #f4dfaa;
+  background: #fff9e9;
+  color: #98660b;
+}
+
+.foodics-status.overdue {
+  border-color: #f1c8c8;
+  background: #fff5f5;
+  color: #ae3838;
+}
+
+.foodics-status.needs-date {
+  border-color: #e7d8bd;
+  background: #fdf8ef;
+  color: #917141;
+}
+
+.foodics-classification.confidential {
+  border-color: #f1dba9;
+  background: #fff9e9;
+  color: #8c661d;
+}
+
+.foodics-classification.restricted {
+  border-color: #f1c8c8;
+  background: #fff5f5;
+  color: #a54040;
+}
+
+.foodics-classification.internal {
+  border-color: #dbe7f6;
+  background: #f2f7fd;
+  color: #496b96;
+}
+
+.foodics-panel-footer {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-top: 1px solid #edf0f4;
+  color: #99a3b1;
+  font-size: 9px;
+}
+
+.foodics-empty {
+  display: flex;
+  min-height: 245px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 18px;
+  text-align: center;
+}
+
+.foodics-empty-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid #e9edf3;
+  border-radius: 14px;
+  background: #fafbfd;
+  color: #8d9ab0;
+}
+
+.foodics-empty h3 {
+  margin: 13px 0 4px;
+  color: #28374e;
+  font-size: 13px;
+}
+
+.foodics-empty p {
+  max-width: 370px;
+  margin: 0 0 15px;
+  color: #8995a5;
+  font-size: 10.5px;
+}
+
+.foodics-loading {
+  display: flex;
+  min-height: 190px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #778499;
+  font-size: 11px;
+}
+
+.foodics-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e4e9f0;
+  border-top-color: #59789f;
+  border-radius: 50%;
+  animation: foodics-spin 0.7s linear infinite;
+}
+
+@keyframes foodics-spin {
+  to { transform: rotate(360deg); }
+}
+
+.foodics-category-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 15px;
+  padding: 12px 14px;
+  border: 1px solid #e8ebf0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.foodics-category-strip > strong {
+  margin-right: 3px;
+  color: #56657a;
+  font-size: 10px;
+}
+
+.foodics-category-strip > span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f6fa;
+  color: #69788e;
+  font-size: 9px;
+}
+
+.foodics-vat-guidance,
+.foodics-document-guidance {
+  margin-bottom: 14px;
+  border-color: #e7dfca;
+  background: #fffdf8;
+}
+
+.foodics-vat-guidance > span,
+.foodics-document-guidance > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: #fff4d9;
+  color: #99680e;
+}
+
+.foodics-document-guidance {
+  border-color: #f0d7d7;
+  background: #fff9f9;
+}
+
+.foodics-document-guidance > span {
+  background: #ffeded;
+  color: #a24040;
+}
+
+.foodics-vat-guidance strong,
+.foodics-document-guidance strong,
+.foodics-account-notice strong {
+  display: block;
+  margin: 1px 0 2px;
+  color: #39485e;
+  font-size: 11px;
+}
+
+.foodics-vat-guidance p,
+.foodics-document-guidance p,
+.foodics-account-notice p {
+  margin: 0;
+  color: #79869a;
+  font-size: 10.5px;
+}
+
+.foodics-account-notice {
+  margin-bottom: 14px;
+  border-color: #f0dfb8;
+  background: #fffdf7;
+}
+
+.foodics-account-notice > svg {
+  flex: 0 0 auto;
+  color: #a57820;
+}
+
+.foodics-account-code {
+  color: #38577c !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.foodics-account-type.asset {
+  border-color: #dce8f6;
+  background: #f3f7fc;
+  color: #4a6b93;
+}
+
+.foodics-account-type.liability {
+  border-color: #f0dfb8;
+  background: #fffbef;
+  color: #8c6b29;
+}
+
+.foodics-account-type.equity {
+  border-color: #e7ddf5;
+  background: #f8f4fc;
+  color: #75589a;
+}
+
+.foodics-account-type.revenue {
+  border-color: #d0ebdc;
+  background: #f2fbf6;
+  color: #367451;
+}
+
+.foodics-account-type.expense {
+  border-color: #f2d8d8;
+  background: #fff7f7;
+  color: #975252;
+}
+
+.foodics-procedure-summary {
+  display: flex;
+  min-height: 132px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  margin-bottom: 15px;
+  padding: 20px 22px;
+  border: 1px solid #e4eaf2;
+  border-radius: 12px;
+  background: linear-gradient(115deg, #fff 20%, #f8fafd 100%);
+}
+
+.foodics-procedure-summary h2 {
+  margin: 5px 0 3px;
+  color: #20344f;
+  font-size: 17px;
+}
+
+.foodics-procedure-summary p {
+  margin: 0;
+  color: #8290a3;
+  font-size: 10.5px;
+}
+
+.foodics-progress {
+  width: 190px;
+  flex: 0 0 190px;
+}
+
+.foodics-progress > strong {
+  color: #213b5d;
+  font-size: 23px;
+  letter-spacing: -0.04em;
+}
+
+.foodics-progress > strong span {
+  color: #a2adbb;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.foodics-progress > small {
+  display: block;
+  margin: 0 0 9px;
+  color: #8793a4;
+  font-size: 9px;
+}
+
+.foodics-progress-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #e9edf2;
+}
+
+.foodics-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #b88528;
+  transition: width 0.2s ease;
+}
+
+.foodics-procedure-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.foodics-procedure-card {
+  padding: 16px 17px 14px;
+  border: 1px solid #e5eaf1;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.025);
+}
+
+.foodics-procedure-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.foodics-procedure-number {
+  color: #9a6b16;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.foodics-cadence {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f7f3e9;
+  color: #8d712f;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.foodics-procedure-card h3 {
+  margin: 9px 0 3px;
+  color: #243650;
+  font-size: 13px;
+}
+
+.foodics-procedure-card > p {
+  min-height: 30px;
+  margin: 0;
+  color: #8490a1;
+  font-size: 10px;
+}
+
+.foodics-procedure-count {
+  margin: 12px 0 5px;
+  color: #77859a;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.foodics-procedure-card ol {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.foodics-procedure-card li label {
+  display: flex;
+  min-height: 36px;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 2px;
+  border-top: 1px solid #f0f2f5;
+  color: #526177;
+  font-size: 10px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.foodics-procedure-card li label.is-checked > span {
+  color: #98a2b0;
+  text-decoration: line-through;
+}
+
+.foodics-procedure-card li input {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 1px 0 0;
+  accent-color: #42658e;
+}
+
+.foodics-procedure-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 13px;
+  color: #8692a3;
+  font-size: 10px;
+}
+
+.foodics-procedure-footnote svg {
+  flex: 0 0 auto;
+  color: #8d9bb0;
+}
+
+.foodics-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px;
+  background: rgba(11, 24, 43, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.foodics-entry-modal {
+  width: min(640px, 100%);
+  max-height: min(90vh, 850px);
+  overflow: auto;
+  padding: 21px;
+  border: 1px solid #e4e8ef;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.23);
+}
+
+.foodics-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.foodics-modal-header h2 {
+  margin: 5px 0 0;
+  color: #20334e;
+  font-size: 19px;
+}
+
+.foodics-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.foodics-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: #56657a;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.foodics-field-wide {
+  grid-column: 1 / -1;
+}
+
+.foodics-field small {
+  color: #9aa4b2;
+  font-size: 9px;
+  font-weight: 450;
+}
+
+.foodics-field input,
+.foodics-field select,
+.foodics-field textarea {
+  width: 100%;
+  min-height: 37px;
+  padding: 8px 10px;
+  border: 1px solid #dfe5ed;
+  border-radius: 7px;
+  outline: 0;
+  background: #fff;
+  color: #2d3d53;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.foodics-field input:focus,
+.foodics-field select:focus,
+.foodics-field textarea:focus {
+  border-color: #8aa2c1;
+  box-shadow: 0 0 0 3px rgba(48, 89, 139, 0.08);
+}
+
+.foodics-field input[type='file'] {
+  min-height: 42px;
+  padding: 8px;
+  font-size: 10px;
+}
+
+.foodics-field textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.foodics-selected-file {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #547093;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.foodics-form-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: #ae3838;
+  font-size: 10px;
+}
+
+.foodics-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 19px;
+  padding-top: 15px;
+  border-top: 1px solid #edf0f4;
+}
+
+@media (max-width: 820px) {
+  .mobile-drawer-nav > .foodics-nav-mobile {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .foodics-nav-mobile .foodics-nav-sections {
+    padding-right: 7px;
+    padding-left: 9px;
+  }
+
+  .foodics-nav-mobile .foodics-nav-project-sections {
+    margin-left: 14px;
+    padding-left: 8px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item {
+    min-width: 0;
+  }
+
+  .foodics-page {
+    padding: 20px 14px 100px;
+  }
+
+  .foodics-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .foodics-page-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .foodics-page-header > .foodics-button {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .foodics-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .foodics-search {
+    width: 100%;
+  }
+
+  .foodics-table {
+    min-width: 760px;
+  }
+
+  .foodics-procedure-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .foodics-procedure-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .foodics-progress {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .foodics-page {
+    padding: 17px 11px 94px;
+  }
+
+  .foodics-workspace-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .foodics-workspace-card {
+    min-height: 155px;
+  }
+
+  .foodics-project-card {
+    min-height: 88px;
+    padding: 13px;
+  }
+
+  .foodics-page-header {
+    flex-direction: column;
+  }
+
+  .foodics-page-header > .foodics-button {
+    width: 100%;
+  }
+
+  .foodics-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .foodics-summary-card {
+    min-height: 77px;
+  }
+
+  .foodics-summary-card > strong {
+    font-size: 21px;
+  }
+
+  .foodics-procedure-summary {
+    padding: 16px;
+  }
+
+  .foodics-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .foodics-field-wide {
+    grid-column: auto;
+  }
+
+  .foodics-modal-backdrop {
+    align-items: flex-end;
+    padding: 8px;
+  }
+
+  .foodics-entry-modal {
+    max-height: 92vh;
+    padding: 17px;
+    border-radius: 14px 14px 10px 10px;
+  }
+
+  .foodics-category-strip {
+    gap: 6px;
+    padding: 10px;
+  }
+}
+
+
+/* ==========================================================================
+   Mobile Fix 2 – Foodics Management Sidebar: Correct Nested Layout (< 821px)
+   Applied exclusively to mobile. Desktop sidebar layout is NOT affected.
+   These rules supplement and correct the existing mobile rules above.
+   ========================================================================== */
+
+@media (max-width: 820px) {
+
+  /* ── Foodics nav spans full width in the 2-column mobile drawer grid ───── */
+  .mobile-drawer-nav .foodics-nav-mobile,
+  .mobile-drawer-nav > .foodics-nav-mobile {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    border-radius: 12px;
+    border: 1px solid #e8dfc5;
+    background: #fffef9;
+    overflow: hidden;
+  }
+
+  /* ── Foodics heading row: flex, full width, no wrapping ─────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-heading {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: 52px;
+    gap: 0;
+    padding: 0 4px 0 0;
+    background: #fffbef;
+    border-bottom: 1px solid #f0e6c8;
+    width: 100%;
+  }
+
+  /* ── Main button in heading ──────────────────────────────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #17355b;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+    width: auto;
+    overflow: hidden;
+  }
+
+  /* ── Toggle (expand/collapse chevron) button ────────────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-toggle {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-toggle:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  /* ── Sections wrapper: single-column flex, NOT grid ─────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px 10px;
+    background: #fff;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* ── Reports library top-level item ─────────────────────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-reports {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    min-height: 44px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+    border: 0;
+    border-bottom: 1px solid #eef1f5;
+    cursor: pointer;
+    text-align: left;
+    margin-bottom: 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-reports.selected {
+    background: #fff1cf;
+    color: #825306;
+    font-weight: 650;
+  }
+
+  /* ── Project group: single-column flex container ─────────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* ── Project row (expandable parent item) ─────────────────────────────────  */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: transparent;
+    border: 0;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background 0.12s, color 0.12s;
+    box-sizing: border-box;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project:hover,
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project.selected {
+    background: #f8f4e8;
+    color: #17355b;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project.selected {
+    background: #fffbef;
+    color: #825306;
+    font-weight: 700;
+  }
+
+  /* Project mark (letter avatar) */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-project-mark {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  /* Project name text */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Chevron icon */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project-chevron {
+    flex: 0 0 auto;
+    color: #94a3b8;
+  }
+
+  /* ── Project sub-sections list (child of a project, shown when expanded) ─── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project-sections,
+  .foodics-nav-mobile .foodics-nav-project-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 2px 0 4px 14px;
+    padding: 4px 6px 4px 10px;
+    border-left: 2px solid #f0e3b8;
+    background: transparent;
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  /* ── Individual section item inside a project ─────────────────────────────  */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    min-height: 42px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    min-width: 0;
+    box-sizing: border-box;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item > svg {
+    flex: 0 0 16px;
+    color: #94a3b8;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item:hover {
+    background: #f8f4e8;
+    color: #334155;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item.selected {
+    background: #fff1cf;
+    color: #825306;
+    font-weight: 650;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item.selected > svg {
+    color: #a76b07;
+  }
+
+  /* ── Foodics icon in heading ─────────────────────────────────────────────── */
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #fff5df;
+    color: #a76b07;
+  }
+}
+
+/* Additional tight-screen adjustments for Foodics sidebar (≤ 390px) */
+@media (max-width: 390px) {
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project {
+    min-height: 42px;
+    padding: 7px 8px;
+    font-size: 12.5px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item {
+    min-height: 40px;
+    padding: 7px 8px;
+    font-size: 12.5px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project-sections,
+  .foodics-nav-mobile .foodics-nav-project-sections {
+    margin-left: 10px;
+    padding-left: 8px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-main {
+    font-size: 13px;
+  }
+}
+
+/* Additional tight-screen adjustments for Foodics sidebar (≤ 320px) */
+@media (max-width: 320px) {
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-project {
+    gap: 8px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-nav-item {
+    min-height: 38px;
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 7px;
+  }
+
+  .mobile-drawer-nav .foodics-nav-mobile .foodics-project-mark {
+    flex-basis: 26px;
+    width: 26px;
+    height: 26px;
+  }
+}
