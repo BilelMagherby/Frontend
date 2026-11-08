@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout.jsx'
 import { FOODICS_PROJECTS, FOODICS_SECTIONS } from './pages/FoodicsManagement/foodicsData.js'
 import {
   FRONTEND_ONLY,
+  DEFAULT_FRONTEND_DEMO_PIN,
   FRONTEND_SESSION_USER_KEY,
   ROLE_USERS_KEY,
   DEFAULT_PROJECTS,
@@ -57,7 +58,7 @@ export function App() {
   const roleUsers = roleStore.users
   const [demoPin, setDemoPin] = useState(() => {
     try {
-      return localStorage.getItem('taskflow_demo_pin') || ''
+      return localStorage.getItem('taskflow_demo_pin') || (FRONTEND_ONLY ? DEFAULT_FRONTEND_DEMO_PIN : '')
     } catch {
       return ''
     }
@@ -270,7 +271,9 @@ export function App() {
 
   useEffect(() => {
     let active = true
-    const savedPin = typeof window !== 'undefined' ? localStorage.getItem('taskflow_demo_pin') : null
+    const savedPin = typeof window !== 'undefined'
+      ? localStorage.getItem('taskflow_demo_pin') || (FRONTEND_ONLY ? DEFAULT_FRONTEND_DEMO_PIN : null)
+      : null
     const savedUserId =
       typeof window !== 'undefined' ? localStorage.getItem(FRONTEND_SESSION_USER_KEY) || 'admin' : 'admin'
     const rememberedUser =

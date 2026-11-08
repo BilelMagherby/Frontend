@@ -78,7 +78,7 @@ function localClickupFunction() {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const frontendOnly = mode === 'frontend-only'
+  const frontendOnly = mode === 'frontend-only' || env.VITE_FRONTEND_ONLY === 'true' || process.env.VERCEL === '1'
   if (!process.env.CLICKUP_API_TOKEN) {
     const backendEnv = loadEnv(mode, resolve(frontendDirectory, '..', 'Backend'), '')
     process.env.CLICKUP_API_TOKEN = env.CLICKUP_API_TOKEN || backendEnv.CLICKUP_API_TOKEN || ''

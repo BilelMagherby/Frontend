@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../ui/Button.jsx'
 import { request } from '../../services/api.js'
 import { rememberFrontendSession, clearFrontendRememberedSession } from '../../utils/session.js'
+import { DEFAULT_FRONTEND_DEMO_PIN } from '../../utils/constants.js'
 
 export function PinGate({ auth, demoPin, roleUsers = [], onPinCreated, onAuthenticated }) {
   const [pin, setPin] = useState('')
@@ -58,7 +59,7 @@ export function PinGate({ auth, demoPin, roleUsers = [], onPinCreated, onAuthent
             frontendOnly: true,
             activeUser: { id: 'admin', name: 'Admin', isAdmin: true },
           })
-        } else if (pin === demoPin || (stored && pin === stored)) {
+        } else if (pin === DEFAULT_FRONTEND_DEMO_PIN || pin === demoPin || (stored && pin === stored)) {
           if (remember) rememberFrontendSession()
           else clearFrontendRememberedSession()
           onAuthenticated({ ...auth, authed: true, activeUser: { id: 'admin', name: 'Admin', isAdmin: true } })

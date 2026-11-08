@@ -17,6 +17,10 @@ npm run dev
 
 Open the local URL printed by Vite. The default development server proxies API requests to `http://localhost:8889`; create an admin PIN on first launch. To intentionally use isolated browser-only storage for a demo, run `npm run dev:frontend-only`.
 
+## Vercel demo deployment
+
+Vercel builds run in browser-only demo mode because this repository does not include the TaskFlow data and authentication backend. The demo PIN is `1111`; dashboard data is stored separately in each browser and is not shared or protected by server-side authentication. Do not use this mode for confidential data. To run a shared, protected dashboard, deploy and configure the TaskFlow backend instead.
+
 ## Build and preview
 
 ```bash

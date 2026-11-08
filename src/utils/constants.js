@@ -1,5 +1,7 @@
 export const FRONTEND_ONLY = import.meta.env.VITE_FRONTEND_ONLY === 'true'
 
+export const DEFAULT_FRONTEND_DEMO_PIN = '1111'
+
 export const STATUSES = ['To Do', 'In Progress', 'Review', 'Done']
 
 export const STATUS_COLORS = { 'To Do': '#94a3b8', 'In Progress': '#3b82f6', Review: '#f59e0b', Done: '#10b981' }
