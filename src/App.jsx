@@ -840,7 +840,7 @@ export function App() {
     })
     const records = [...unique.values()]
     for (let index = 0; index < records.length; index += 500) {
-      await request('/api/docs', {
+      await request('/api/docs?collection=history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collection: 'history', items: records.slice(index, index + 500) }),

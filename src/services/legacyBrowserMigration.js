@@ -99,7 +99,7 @@ async function migrateTaskflowDocuments(preferences) {
       const missing = rows.filter((row) => !existing.has(row.id))
       for (let index = 0; index < missing.length; index += 500) {
         const items = missing.slice(index, index + 500)
-        await request('/api/docs', {
+        await request(`/api/docs?collection=${encodeURIComponent(collection)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ collection, items }),
