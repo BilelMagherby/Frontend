@@ -4,24 +4,12 @@ import { Icon } from './components/ui/Icon.jsx'
 import { AppLayout } from './components/layout/AppLayout.jsx'
 import { FOODICS_PROJECTS, FOODICS_SECTIONS } from './pages/FoodicsManagement/foodicsData.js'
 import {
-  FRONTEND_ONLY,
-  DEFAULT_FRONTEND_DEMO_PIN,
-  FRONTEND_SESSION_USER_KEY,
-  ROLE_USERS_KEY,
-  DEFAULT_PROJECTS,
-  EMAIL_DEFAULTS,
   DEFAULT_CONFIG,
   PAGES,
   ALL_ROLE_PERMISSIONS,
   GULF_INITIAL_NODES,
-  GULF_INITIAL_ASSETS,
 } from './utils/constants.js'
-import { migrateBrowserDataToBackend } from './services/api.js'
-import {
-  clearFrontendRememberedSession,
-  hasFrontendRememberedSession,
-  loadRoleUsers,
-} from './utils/session.js'
+import { migrateLegacyBrowserData } from './services/legacyBrowserMigration.js'
 import { isLate, endOf, normalize, today } from './utils/helpers.js'
 import { request, api } from './services/api.js'
 
@@ -54,15 +42,8 @@ import { ActivityLogPage } from './pages/ActivityLog/ActivityLogPage.jsx'
 export function App() {
   const [auth, setAuth] = useState(null)
   const [preferencesLoadedFor, setPreferencesLoadedFor] = useState('')
-  const [roleStore, setRoleStore] = useState(loadRoleUsers)
+  const [roleStore, setRoleStore] = useState({ users: [], error: '' })
   const roleUsers = roleStore.users
-  const [demoPin, setDemoPin] = useState(() => {
-    try {
-      return localStorage.getItem('taskflow_demo_pin') || (FRONTEND_ONLY ? DEFAULT_FRONTEND_DEMO_PIN : '')
-    } catch {
-      return ''
-    }
-  })
   const [page, setPage] = useState('dash')
   const [foodicsSection, setFoodicsSection] = useState('overview')
   const [foodicsProject, setFoodicsProject] = useState('')
@@ -70,9 +51,9 @@ export function App() {
   const [foodicsNavOpen, setFoodicsNavOpen] = useState(true)
   const [natheelGulfOpen, setNatheelGulfOpen] = useState(false)
   const [gulfActiveSection, setGulfActiveSection] = useState('files')
-  const [gulfNodes, setGulfNodes] = useState(GULF_INITIAL_NODES)
-  const [gulfAssets, setGulfAssets] = useState(GULF_INITIAL_ASSETS)
-  const [gulfDataLoaded, setGulfDataLoaded] = useState(false)
+  const [gulfNodes, setGulfNodes] = useState([])
+  const [gulfAssets, setGulfAssets] = useState([])
+  const [gulfContacts, setGulfContacts] = useState([])
   const [gulfSelectedNode, setGulfSelectedNode] = useState('natheel-gulf')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [tasks, setTasks] = useState([])
@@ -97,22 +78,14 @@ export function App() {
   const [calendarEventDetail, setCalendarEventDetail] = useState(null)
   const [seenReminderIds, setSeenReminderIds] = useState([])
   const [currentDate, setCurrentDate] = useState(today)
-  const [calendarPerson, setCalendarPerson] = useState(() => {
-    try {
-      return localStorage.getItem('who') || ''
-    } catch {
-      return ''
-    }
-  })
+  const [calendarPerson, setCalendarPerson] = useState('')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [clickupStatus, setClickupStatus] = useState('Unavailable in standalone mode')
+  const [clickupStatus, setClickupStatus] = useState('Not connected')
   const [lastSync, setLastSync] = useState(0)
   const [taskMode, setTaskMode] = useState('list')
   const [minutesBusy, setMinutesBusy] = useState(false)
   const configDraftDirty = useRef(false)
   const ceoDashboardRequestVersion = useRef(0)
-  const browserMigrationAttempted = useRef(false)
-
   useEffect(() => {
     const interval = window.setInterval(() => setCurrentDate(today()), 60_000)
     return () => window.clearInterval(interval)
@@ -144,7 +117,7 @@ export function App() {
       status: filters.status,
     })
     const dashboardRequestVersion = ++ceoDashboardRequestVersion.current
-    if (canReadCeoDashboard && !auth?.frontendOnly) {
+    if (canReadCeoDashboard) {
       request(`/api/dashboard/ceo?${dashboardQuery}`)
         .then((summary) => {
           if (dashboardRequestVersion === ceoDashboardRequestVersion.current) setCeoDashboardSummary(summary)
@@ -178,15 +151,14 @@ export function App() {
         ...data,
         w: { ...DEFAULT_CONFIG.w, ...(data.w || {}) },
         credit: { ...DEFAULT_CONFIG.credit, ...(data.credit || {}) },
-        emails: { ...EMAIL_DEFAULTS, ...(data.emails || {}) },
-        projects: data.projects || DEFAULT_PROJECTS,
-        team: data.team || DEFAULT_CONFIG.team,
+        projects: data.projects || [],
+        team: data.team || [],
+        emails: data.emails || {},
       })
     }
   }, [
     auth?.activeUser?.id,
     auth?.activeUser?.permissions,
-    auth?.frontendOnly,
     canReadCeoDashboard,
     canReadMeetings,
     canReadTaskData,
@@ -271,60 +243,58 @@ export function App() {
 
   useEffect(() => {
     let active = true
-    const savedPin = typeof window !== 'undefined'
-      ? localStorage.getItem('taskflow_demo_pin') || (FRONTEND_ONLY ? DEFAULT_FRONTEND_DEMO_PIN : null)
-      : null
-    const savedUserId =
-      typeof window !== 'undefined' ? localStorage.getItem(FRONTEND_SESSION_USER_KEY) || 'admin' : 'admin'
-    const rememberedUser =
-      savedUserId === 'admin'
-        ? { id: 'admin', name: 'Admin', isAdmin: true }
-        : roleUsers.find((user) => user.id === savedUserId)
-    const hasRememberedSession = hasFrontendRememberedSession()
-    const remembered = Boolean(savedPin && rememberedUser && hasRememberedSession)
-    if (savedPin && !rememberedUser && hasRememberedSession) clearFrontendRememberedSession()
-    if (FRONTEND_ONLY) {
-      setAuth({ configured: Boolean(savedPin), authed: remembered, frontendOnly: true, activeUser: rememberedUser })
-    } else {
-      request('/api/auth')
-        .then((data) => {
-          if (active) setAuth(data)
-        })
-        .catch((cause) => {
-          if (active) {
-            setAuth({
-              configured: false,
-              authed: false,
-              frontendOnly: false,
-              error: `Cannot connect to the backend: ${cause.message}`,
-            })
+    request('/api/auth')
+      .then(async (data) => {
+        if (data.authed && data.activeUser?.isAdmin) {
+          try {
+            const migrated = await migrateLegacyBrowserData(data.activeUser)
+            if (migrated.migrated && (migrated.documents || migrated.files)) {
+              setToast(`Moved ${migrated.documents} record(s) and ${migrated.files} file(s) to the shared backend.`)
+            }
+          } catch (cause) {
+            if (active) setError(`Could not migrate saved browser data to the backend: ${cause.message}`)
           }
-        })
-    }
-    const lockHandler = () => {
-      clearFrontendRememberedSession()
-      setAuth((current) => ({ ...current, authed: false }))
-    }
-    window.addEventListener('taskflow:locked', lockHandler)
+        }
+        if (active) setAuth(data)
+      })
+      .catch((cause) => {
+        if (active) {
+          setAuth({
+            configured: false,
+            authed: false,
+            error: `Cannot connect to the backend: ${cause.message}`,
+          })
+        }
+      })
     return () => {
       active = false
-      window.removeEventListener('taskflow:locked', lockHandler)
     }
-  }, [showError])
+  }, [])
+
+  async function completeAuthentication(nextAuth) {
+    if (nextAuth.activeUser?.isAdmin) {
+      try {
+        const migrated = await migrateLegacyBrowserData(nextAuth.activeUser)
+        if (migrated.migrated && (migrated.documents || migrated.files)) {
+          setToast(`Moved ${migrated.documents} record(s) and ${migrated.files} file(s) to the shared backend.`)
+        }
+      } catch (cause) {
+        setError(`Could not migrate saved browser data to the backend: ${cause.message}`)
+      }
+    }
+    const permissions = nextAuth.activeUser?.permissions || []
+    setPage(nextAuth.activeUser?.isAdmin ? 'dash' : permissions[0] || 'dash')
+    setAuth(nextAuth)
+  }
 
   async function saveRoleUsers(users) {
     try {
-      if (!auth?.frontendOnly) {
-        const savedUsers = await request('/api/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ users }),
-        })
-        setRoleStore({ users: savedUsers, error: '' })
-        return true
-      }
-      localStorage.setItem(ROLE_USERS_KEY, JSON.stringify(users))
-      setRoleStore({ users, error: '' })
+      const savedUsers = await request('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users }),
+      })
+      setRoleStore({ users: savedUsers, error: '' })
       return true
     } catch (cause) {
       setRoleStore((current) => ({ ...current, error: `Could not save users: ${cause.message}` }))
@@ -343,12 +313,6 @@ export function App() {
       }
     }
     load()
-    if (auth.frontendOnly) {
-      setIntegrations({ google: false, zoom: false, timezone: 'Asia/Riyadh' })
-      return () => {
-        active = false
-      }
-    }
     const loadIntegrations = async () => {
       if (!canReadMeetings) return
       try {
@@ -361,26 +325,7 @@ export function App() {
     loadIntegrations()
     if (auth.activeUser?.isAdmin) {
       request('/api/users')
-        .then(async (users) => {
-          if (!users.length) {
-            const legacy = loadRoleUsers()
-            if (legacy.error) {
-              setRoleStore({ users, error: legacy.error })
-              return
-            }
-            if (legacy.users.length) {
-              const migratedUsers = await request('/api/users', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ users: legacy.users }),
-              })
-              localStorage.removeItem(ROLE_USERS_KEY)
-              setRoleStore({ users: migratedUsers, error: '' })
-              return
-            }
-          }
-          setRoleStore({ users, error: '' })
-        })
+        .then((users) => setRoleStore({ users, error: '' }))
         .catch((cause) => setRoleStore((current) => ({ ...current, error: `Could not load users: ${cause.message}` })))
     }
     const poll = window.setInterval(load, 5000)
@@ -392,7 +337,6 @@ export function App() {
     auth?.activeUser?.id,
     auth?.activeUser?.isAdmin,
     auth?.authed,
-    auth?.frontendOnly,
     canReadMeetings,
     refresh,
     showError,
@@ -401,62 +345,46 @@ export function App() {
   useEffect(() => {
     if (!auth?.authed || !canReadGulf) return undefined
     let active = true
-    if (auth.frontendOnly) {
-      api.get('gulf/main')
-        .then(async (result) => {
-          if (!result.exists) {
-            await api.put('gulf/main', { nodes: GULF_INITIAL_NODES, assets: GULF_INITIAL_ASSETS })
-            if (!active) return
-            setGulfNodes(GULF_INITIAL_NODES)
-            setGulfAssets(GULF_INITIAL_ASSETS)
-          } else {
-            if (!Array.isArray(result.data?.nodes) || !Array.isArray(result.data?.assets)) {
-              throw new Error('Stored Natheel Gulf data has an invalid format.')
-            }
-            if (!active) return
-            setGulfNodes(result.data.nodes)
-            setGulfAssets(result.data.assets)
-          }
-          if (active) setGulfDataLoaded(true)
-        })
-        .catch((cause) => {
-          if (active) showError(`Could not load Natheel Gulf data: ${cause.message}`)
-        })
-      return () => {
-        active = false
-      }
-    }
-    api.get('gulf/main')
-      .then(async (result) => {
+    const loadGulf = async () => {
+      try {
+        const result = await api.get('gulf/main')
         if (!result.exists) {
-          await api.put('gulf/main', { nodes: GULF_INITIAL_NODES, assets: GULF_INITIAL_ASSETS })
+          await api.put('gulf/main', { nodes: GULF_INITIAL_NODES, assets: [], contacts: [] })
           if (!active) return
           setGulfNodes(GULF_INITIAL_NODES)
-          setGulfAssets(GULF_INITIAL_ASSETS)
+          setGulfAssets([])
+          setGulfContacts([])
         } else {
-          if (!Array.isArray(result.data?.nodes) || !Array.isArray(result.data?.assets)) {
+          if (
+            !Array.isArray(result.data?.nodes) ||
+            !Array.isArray(result.data?.assets) ||
+            (result.data.contacts !== undefined && !Array.isArray(result.data.contacts))
+          ) {
             throw new Error('Stored Natheel Gulf data has an invalid format.')
           }
           if (!active) return
           setGulfNodes(result.data.nodes)
           setGulfAssets(result.data.assets)
+          setGulfContacts(result.data.contacts || [])
         }
-        if (active) setGulfDataLoaded(true)
-      })
-      .catch((cause) => {
+      } catch (cause) {
         if (active) showError(`Could not load Natheel Gulf data: ${cause.message}`)
-      })
+      }
+    }
+    loadGulf()
+    const poll = window.setInterval(() => {
+      if (!document.hidden) loadGulf()
+    }, 15000)
     return () => {
       active = false
+      window.clearInterval(poll)
     }
-  }, [auth?.authed, auth?.frontendOnly, canReadGulf, showError])
+  }, [auth?.authed, canReadGulf, showError])
 
-  useEffect(() => {
-    if (!auth?.authed || !canReadGulf || !gulfDataLoaded) return
-    api.put('gulf/main', { nodes: gulfNodes, assets: gulfAssets }).catch((cause) => {
-      showError(`Could not save Natheel Gulf data: ${cause.message}`)
-    })
-  }, [auth?.authed, canReadGulf, gulfAssets, gulfDataLoaded, gulfNodes, showError])
+  const saveGulfContacts = useCallback(async (contacts) => {
+    await api.patch('gulf/main', { contacts })
+    setGulfContacts(contacts)
+  }, [])
 
   useEffect(() => {
     if (!auth?.authed || !canReadTaskData) return undefined
@@ -493,9 +421,6 @@ export function App() {
       }
       if (typeof preferences.calendarPerson === 'string') {
         setCalendarPerson(preferences.calendarPerson)
-      } else {
-        const legacyCalendarPerson = localStorage.getItem('who')
-        if (legacyCalendarPerson) setCalendarPerson(legacyCalendarPerson)
       }
       if (['list', 'board', 'calendar'].includes(preferences.taskMode)) setTaskMode(preferences.taskMode)
       if (typeof preferences.foodicsSection === 'string') setFoodicsSection(preferences.foodicsSection)
@@ -507,28 +432,8 @@ export function App() {
       if (typeof preferences.gulfSelectedNode === 'string') setGulfSelectedNode(preferences.gulfSelectedNode)
       if (Array.isArray(preferences.seenReminderIds)) {
         setSeenReminderIds(preferences.seenReminderIds.filter((id) => typeof id === 'string').slice(-500))
-      } else {
-        try {
-          const legacyReminders = JSON.parse(localStorage.getItem('rem') || '[]')
-          if (Array.isArray(legacyReminders)) {
-            setSeenReminderIds(legacyReminders.filter((id) => typeof id === 'string').slice(-500))
-          }
-        } catch {
-          setSeenReminderIds([])
-        }
       }
       setPreferencesLoadedFor(user.id)
-    }
-    if (auth.frontendOnly) {
-      try {
-        const saved = localStorage.getItem('taskflow_demo_preferences')
-        applyPreferences(saved ? JSON.parse(saved) : {})
-      } catch {
-        applyPreferences()
-      }
-      return () => {
-        active = false
-      }
     }
     api.get(`preferences/${user.id}`)
       .then((result) => {
@@ -547,7 +452,6 @@ export function App() {
     auth?.activeUser?.isAdmin,
     auth?.activeUser?.permissions,
     auth?.authed,
-    auth?.frontendOnly,
     showError,
   ])
 
@@ -570,19 +474,7 @@ export function App() {
       seenReminderIds: seenReminderIds.slice(-500),
     }
     const timer = window.setTimeout(() => {
-      if (auth.frontendOnly) {
-        try {
-          localStorage.setItem('taskflow_demo_preferences', JSON.stringify(preferences))
-        } catch (cause) {
-          showError(`Could not save your dashboard preferences: ${cause.message}`)
-        }
-        return
-      }
-      api.put(`preferences/${user.id}`, preferences)
-        .then(() => {
-          if (localStorage.getItem('who') !== null) localStorage.removeItem('who')
-          if (localStorage.getItem('rem') !== null) localStorage.removeItem('rem')
-        })
+      api.patch(`preferences/${user.id}`, preferences)
         .catch((cause) => {
           showError(`Could not save your dashboard preferences: ${cause.message}`)
         })
@@ -591,7 +483,6 @@ export function App() {
   }, [
     auth?.activeUser?.id,
     auth?.authed,
-    auth?.frontendOnly,
     calendarDate,
     calendarPerson,
     filters,
@@ -616,7 +507,7 @@ export function App() {
   }, [auth?.activeUser, auth?.authed, page])
 
   const projects = useMemo(() => {
-    const configured = config.projects || DEFAULT_PROJECTS
+    const configured = config.projects || []
     const known = new Set(configured.map((project) => project.id))
     const extras = [
       ...new Set([...tasks, ...history].map((task) => task.project).filter((id) => id && !known.has(id))),
@@ -989,14 +880,8 @@ export function App() {
     return (
       <PinGate
         auth={auth}
-        demoPin={demoPin}
         roleUsers={roleUsers}
-        onPinCreated={setDemoPin}
-        onAuthenticated={(session) => {
-          setAuth(session)
-          const permissions = session.activeUser?.permissions || []
-          setPage(session.activeUser?.isAdmin ? 'dash' : permissions[0] || 'dash')
-        }}
+        onAuthenticated={completeAuthentication}
       />
     )
 
@@ -1044,12 +929,6 @@ export function App() {
   }
 
   async function startMeeting(platform) {
-    const meetingWindow = window.open('about:blank', '_blank')
-    if (!meetingWindow) {
-      showError('Allow pop-ups for this site to open the meeting.')
-      return
-    }
-    let meetingCreated = false
     try {
       const result = await request('/api/meetings', {
         method: 'POST',
@@ -1062,30 +941,11 @@ export function App() {
           project: filters.project || 'nathilco',
         }),
       })
-      meetingCreated = true
-      meetingWindow.opener = null
-      meetingWindow.location.href = result.meeting.joinUrl
-      if (!auth.frontendOnly && auth.activeUser?.isAdmin && !browserMigrationAttempted.current) {
-        browserMigrationAttempted.current = true
-        try {
-          const migrated = await migrateBrowserDataToBackend()
-          if (migrated.documents || migrated.files) {
-            showToast(`Moved ${migrated.documents} saved record(s) and ${migrated.files} file(s) into the shared database.`)
-          }
-        } catch (cause) {
-          showError(`Could not move saved browser data into the shared database: ${cause.message}`)
-        }
-      }
-      try {
-        await refresh()
-      } catch (cause) {
-        showError(`Meeting started, but the dashboard could not refresh: ${cause.message}`)
-        return
-      }
+      await refresh()
+      setMeetingDetail(result.meeting)
       if (result.warning) showError(result.warning)
-      else showToast('Meeting started.')
+      else showToast('Meeting record saved.')
     } catch (cause) {
-      if (!meetingCreated) meetingWindow.close()
       showError(cause.message)
     }
   }
@@ -1095,27 +955,6 @@ export function App() {
     if (current === null) return
     const next = window.prompt('New PIN (4–8 digits)')
     if (next === null) return
-    if (auth?.frontendOnly) {
-      if (!/^\d{4,8}$/.test(next)) {
-        showError('PIN must be 4–8 digits.')
-        return
-      }
-      if (roleUsers.some((user) => user.pin === next)) {
-        showError('The admin PIN must be different from every user PIN.')
-        return
-      }
-      const stored = demoPin || (typeof window !== 'undefined' && localStorage.getItem('taskflow_demo_pin')) || ''
-      if (stored && current !== stored) {
-        showError('Current PIN is incorrect.')
-        return
-      }
-      setDemoPin(next)
-      try {
-        localStorage.setItem('taskflow_demo_pin', next)
-      } catch {}
-      showToast('PIN changed.')
-      return
-    }
     try {
       await request('/api/auth', {
         method: 'POST',
@@ -1147,18 +986,12 @@ export function App() {
   }
 
   async function logout() {
-    if (auth.frontendOnly) {
-      clearFrontendRememberedSession()
-      setAuth({ ...auth, authed: false })
-      return
-    }
     try {
       await request('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout' }),
       })
-      clearFrontendRememberedSession()
       setAuth({ ...auth, authed: false })
     } catch (cause) {
       showError(cause.message)
@@ -1209,7 +1042,7 @@ export function App() {
       return (
         <NoticesPage
           canViewHR={canAccessPage('hr')}
-          canViewAudit={isAdmin && !auth.frontendOnly}
+          canViewAudit={isAdmin}
           clickupStatus={clickupStatus}
           history={history}
           meetings={allMeetings}
@@ -1222,7 +1055,6 @@ export function App() {
       return (
         <RolesPage
           error={roleStore.error}
-          masterPin={demoPin}
           onSaveUsers={saveRoleUsers}
           users={roleUsers}
         />
@@ -1236,8 +1068,9 @@ export function App() {
         <NatheelGulfPage
           activeSection={gulfActiveSection}
           assets={gulfAssets}
+          contacts={gulfContacts}
+          currentUser={auth.activeUser}
           config={config}
-          connected={!auth.frontendOnly}
           nodes={gulfNodes}
           onLock={logout}
           onError={showError}
@@ -1245,6 +1078,7 @@ export function App() {
           selectedNode={gulfSelectedNode}
           setActiveSection={setGulfActiveSection}
           setAssets={setGulfAssets}
+          onSaveContacts={saveGulfContacts}
           setNodes={setGulfNodes}
           setSelectedNode={setGulfSelectedNode}
         />
@@ -1371,7 +1205,7 @@ export function App() {
           ceoNotes={ceoNotes}
           employeeReviews={employeeReviews}
           filters={filters}
-          isAdmin={isAdmin && !auth.frontendOnly}
+          isAdmin={isAdmin}
           members={clickup.members}
           onAddEmployeeReview={addEmployeeReview}
           onAddCeoNote={addCeoNote}

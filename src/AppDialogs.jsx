@@ -1,7 +1,6 @@
 export { Avatar } from './components/ui/Avatar.jsx'
 export { Button } from './components/ui/Button.jsx'
 export { Field } from './components/ui/Field.jsx'
-export { loadRoleUsers } from './utils/session.js'
 export { PinGate } from './components/dialogs/PinGate.jsx'
 export { TaskForm } from './components/dialogs/TaskForm.jsx'
 export { MeetingForm } from './components/dialogs/MeetingForm.jsx'

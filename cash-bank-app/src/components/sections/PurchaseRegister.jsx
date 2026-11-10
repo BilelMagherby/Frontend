@@ -61,7 +61,7 @@ export default function PurchaseRegister({ compact = false }) {
     lines: current.lines.map((line, lineIndex) => lineIndex === index ? { ...line, [field]: value } : line),
   }));
 
-  const saveBill = (event) => {
+  const saveBill = async (event) => {
     event.preventDefault();
     const billReference = form.vendorReference.trim();
     if (billReference && purchases.some((purchase) => purchase.vendorReference?.toLowerCase() === billReference.toLowerCase())) {
@@ -74,7 +74,7 @@ export default function PurchaseRegister({ compact = false }) {
     }
     const status = new FormData(event.currentTarget).get("action") === "post" ? "Posted" : "Draft";
     try {
-      addPurchase({
+      await addPurchase({
         id: `BILL-${Date.now()}`,
         vendorReference: billReference,
         date: form.billDate,
@@ -109,9 +109,9 @@ export default function PurchaseRegister({ compact = false }) {
     setFormOpen(false);
   };
 
-  const postSelectedBill = () => {
+  const postSelectedBill = async () => {
     try {
-      updatePurchase(selectedBill.id, { status: "Posted" });
+      await updatePurchase(selectedBill.id, { status: "Posted" });
       setSelectedBill((current) => ({ ...current, status: "Posted" }));
       setError("");
     } catch (saveError) {
@@ -198,7 +198,7 @@ export default function PurchaseRegister({ compact = false }) {
 
       {error && <p role="alert" className="mt-3 text-xs text-rose-700">{error}</p>}
       {purchaseStorageError && <p role="alert" className="mt-3 text-xs text-rose-700">{purchaseStorageError}</p>}
-      <p className="mt-3 text-[11px] text-slate-400">{t("Bills are stored in this browser only; this form is not connected to an Odoo server.", "تُحفظ الفواتير في هذا المتصفح فقط؛ هذا النموذج غير متصل بخادم أودو.")}</p>
+      <p className="mt-3 text-[11px] text-slate-400">{t("Bills are stored in the shared backend; this form is not connected to an Odoo server.", "تُحفظ الفواتير في الخادم المشترك؛ هذا النموذج غير متصل بخادم أودو.")}</p>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <Button type="submit" name="action" value="draft">{t("Save as Draft", "حفظ كمسودة")}</Button>
         <Button type="submit" name="action" value="post">{t("Post", "ترحيل")}</Button>

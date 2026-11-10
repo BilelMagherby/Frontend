@@ -10,6 +10,8 @@ export function NatheelGulfPage({
   setNodes,
   assets = [],
   setAssets,
+  contacts = [],
+  onSaveContacts,
   selectedNode,
   setSelectedNode,
   activeSection,
@@ -17,7 +19,7 @@ export function NatheelGulfPage({
   onLock,
   onToast,
   config = {},
-  connected = false,
+  currentUser,
   onError,
 }) {
   const [query, setQuery] = useState('')
@@ -70,30 +72,37 @@ export function NatheelGulfPage({
     }
     if (validFiles.length) setPendingFiles((current) => [...current, ...validFiles])
   }
-  const addProject = (parent) => {
+  const addProject = async (parent) => {
     const name = window.prompt(parent ? 'New sub-project name' : 'New core project name')
     if (!name?.trim()) return
     const id = `gulf-${Date.now()}`
-    setNodes((current) => [...current, { id, name: name.trim(), parent, color: '#0f766e' }])
-    setSelectedNode(id)
-    onToast(`${name.trim()} added to the asset structure.`)
+    const nextNodes = [...nodes, { id, name: name.trim(), parent, color: '#0f766e' }]
+    try {
+      await api.patch('gulf/main', { nodes: nextNodes })
+      setNodes(nextNodes)
+      setSelectedNode(id)
+      onToast(`${name.trim()} added to the asset structure.`)
+    } catch (error) {
+      onError?.(`Could not save the project: ${error.message}`)
+    }
   }
   const uploadFiles = async () => {
     setUploading(true)
     const records = []
     let completed = 0
+    let saved = false
     try {
       for (const file of pendingFiles) {
-        const uploaded = connected ? await api.uploadFile(file, 'gulf') : null
+        const uploaded = await api.uploadFile(file, 'gulf')
         records.push({
           id: `upload-${Date.now()}-${completed}`,
-          ...(uploaded ? { fileId: uploaded.id } : {}),
+          fileId: uploaded.id,
           name: file.name,
           description: uploadDescription.trim() || file.type || 'Uploaded asset',
           node: selectedNode,
           security: uploadLabel,
           size: sizeLabel(file.size),
-          uploadedBy: 'Current session',
+          uploadedBy: currentUser?.name || 'Unknown user',
           added: new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
           type: file.name.split('.').pop()?.toUpperCase() || 'FILE',
           tags: uploadTags
@@ -103,19 +112,25 @@ export function NatheelGulfPage({
         })
         completed += 1
       }
-    } catch (error) {
-      onError?.(`Could not upload ${pendingFiles[completed]?.name || 'file'}: ${error.message}`)
-    } finally {
       if (records.length) {
+        await api.patch('gulf/main', { assets: [...records, ...assets] })
         setAssets((current) => [...records, ...current])
+        saved = true
+      }
+    } catch (error) {
+      const cleanup = await Promise.allSettled(records.map((record) => api.deleteFile(record.fileId)))
+      const cleanupFailed = cleanup.some((result) => result.status === 'rejected')
+      onError?.(
+        `Could not upload ${pendingFiles[completed]?.name || 'file'}: ${error.message}${
+          cleanupFailed ? ' Some uploaded files could not be removed.' : ''
+        }`
+      )
+    } finally {
+      if (saved) {
         setPendingFiles((current) => current.slice(completed))
         setUploadTags('')
         setUploadDescription('')
-        onToast(
-          connected
-            ? `${records.length} file${records.length === 1 ? '' : 's'} uploaded to the shared asset library.`
-            : `${records.length} file${records.length === 1 ? '' : 's'} added to this browser session.`
-        )
+        onToast(`${records.length} file${records.length === 1 ? '' : 's'} uploaded to the shared asset library.`)
       }
       setUploading(false)
     }
@@ -140,7 +155,7 @@ export function NatheelGulfPage({
         </div>
         <div className="gulf-brand-actions">
           <span className="gulf-user">
-            <Icon name="user" size={15} /> bilel
+            <Icon name="user" size={15} /> {currentUser?.name || 'Signed-in user'}
           </span>
           <span className="gulf-protected">
             <Icon name="lock" size={14} /> Protected
@@ -325,14 +340,12 @@ export function NatheelGulfPage({
               </Button>
             </div>
             <p className="gulf-ingestion-note">
-              <Icon name="lock" size={14} /> {connected
-                ? 'Files and details are uploaded to the protected TaskFlow backend.'
-                : 'Frontend-only mode keeps file details in this browser; file contents are not uploaded.'}
+              <Icon name="lock" size={14} /> Files and details are uploaded to the protected TaskFlow backend.
             </p>
           </div>
         </section>
       ) : activeSection === 'email' ? (
-        <EmailClientPage assets={assets} config={config} nodes={nodes} onToast={onToast} />
+        <EmailClientPage contacts={contacts} onSaveContacts={onSaveContacts} onToast={onToast} />
       ) : (
         <>
           <header className="gulf-page-heading">
@@ -431,17 +444,25 @@ export function NatheelGulfPage({
                     <span className="gulf-action-cell" data-label="Ecosystem action" role="cell">
                       <span>
                         {asset.fileId && (
-                          <a href={api.fileUrl(asset.fileId)} rel="noreferrer" target="_blank">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const blob = await api.downloadFile(asset.fileId)
+                                const url = URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = asset.name
+                                link.click()
+                                URL.revokeObjectURL(url)
+                              } catch (error) {
+                                onError?.(`Could not download ${asset.name}: ${error.message}`)
+                              }
+                            }}
+                            type="button"
+                          >
                             <Icon name="download" size={13} /> Download
-                          </a>
+                          </button>
                         )}
-                        <a
-                          href={`mailto:?subject=${encodeURIComponent(
-                            `Asset reference: ${asset.name}`
-                          )}&body=${encodeURIComponent(`Please attach or reference this asset: ${asset.name}`)}`}
-                        >
-                          <Icon name="mail" size={13} /> Attach to Mail
-                        </a>
                       </span>
                     </span>
                   </article>
@@ -457,7 +478,7 @@ export function NatheelGulfPage({
                 )}
               </div>
               <footer className="gulf-footnote">
-                <Icon name="lock" size={14} /> Security labels are organizational labels, not access controls. {connected ? 'Uploaded assets are stored by the backend and require an authenticated account with Natheel Gulf access.' : 'Uploads and project edits stay in this browser session.'} Email links open a draft; attach files manually.
+                <Icon name="lock" size={14} /> Security labels are organizational labels, not access controls. Uploaded assets are stored by the backend and require an authenticated account with Natheel Gulf access. Email links open a draft; attach files manually.
               </footer>
             </section>
           </div>

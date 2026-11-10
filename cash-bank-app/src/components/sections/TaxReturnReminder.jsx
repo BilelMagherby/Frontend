@@ -41,7 +41,7 @@ export default function TaxReturnReminder() {
       ? { panel: "border-amber-200 bg-amber-50/60", icon: "bg-amber-100 text-amber-700", text: "text-amber-800" }
       : { panel: "border-sky-200 bg-sky-50/60", icon: "bg-sky-100 text-accent", text: "text-sky-900" };
 
-  const saveDate = () => {
+  const saveDate = async () => {
     if (!isValidDateOnly(dateDraft)) {
       setError(t("Enter a valid submission date.", "أدخل تاريخ تقديم صحيحاً."));
       setMessage("");
@@ -53,7 +53,7 @@ export default function TaxReturnReminder() {
       return;
     }
     try {
-      setTaxReturnLastSubmittedDate(dateDraft);
+      await setTaxReturnLastSubmittedDate(dateDraft);
       setError("");
       setMessage(t("Last-submitted date saved. The next reminder has been recalculated.", "تم حفظ تاريخ آخر تقديم وإعادة حساب التذكير القادم."));
     } catch (saveError) {
@@ -62,9 +62,9 @@ export default function TaxReturnReminder() {
     }
   };
 
-  const markSubmittedToday = () => {
+  const markSubmittedToday = async () => {
     try {
-      setTaxReturnLastSubmittedDate(today);
+      await setTaxReturnLastSubmittedDate(today);
       setDateDraft(today);
       setError("");
       setMessage(t("Return marked submitted today. Your next three-month cycle is now scheduled.", "تم تسجيل تقديم الإقرار اليوم. تمت جدولة الدورة القادمة لثلاثة أشهر."));

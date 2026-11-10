@@ -84,18 +84,3 @@ export const PROCEDURES = [
   },
 ]
 
-export const ACCOUNTS = [
-  ['1000', 'Cash on hand', 'Asset', 'Cash counted and held at the outlet'],
-  ['1010', 'Bank accounts', 'Asset', 'Company bank balances and settlements'],
-  ['1100', 'Card settlement receivable', 'Asset', 'Card payments awaiting bank settlement'],
-  ['1200', 'Inventory', 'Asset', 'Stock balances supported by inventory records'],
-  ['2000', 'Accounts payable', 'Liability', 'Approved supplier balances due'],
-  ['2100', 'VAT payable', 'Liability', 'Output VAT liability, subject to accountant review'],
-  ['2200', 'VAT recoverable', 'Asset', 'Eligible input VAT, subject to supporting evidence'],
-  ['3000', 'Owner equity', 'Equity', 'Capital and other approved equity balances'],
-  ['4000', 'Food & beverage sales', 'Revenue', 'Sales classified by the company accounting policy'],
-  ['4100', 'Delivery & other sales', 'Revenue', 'Other sales channels, mapped per company policy'],
-  ['5000', 'Cost of goods sold', 'Expense', 'Recognized cost for goods sold'],
-  ['6000', 'Operating expenses', 'Expense', 'Approved operating and outlet expenses'],
-]
-

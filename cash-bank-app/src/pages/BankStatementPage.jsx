@@ -239,11 +239,27 @@ export default function BankStatementPage() {
   const saveQueues = useRef(new Map());
 
   useEffect(() => {
-    listStatements().then((items) => {
-      statementsRef.current = items;
-      setStatements(items);
-      setSelectedId(items[0]?.id ?? "");
-    }).catch((loadError) => setError(loadError.message)).finally(() => setLoading(false));
+    let active = true;
+    const refresh = async () => {
+      try {
+        const items = await listStatements();
+        if (!active || saveQueues.current.size) return;
+        statementsRef.current = items;
+        setStatements(items);
+        setSelectedId((current) => items.some((item) => item.id === current) ? current : items[0]?.id ?? "");
+        setError("");
+      } catch (loadError) {
+        if (active) setError(`Could not load shared bank statements: ${loadError.message}`);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const selected = statements.find((item) => item.id === selectedId) ?? null;
@@ -293,8 +309,11 @@ export default function BankStatementPage() {
     const write = previousWrite.catch(() => {}).then(() => saveStatement(updated));
     saveQueues.current.set(id, write);
     try {
-      await write;
+      const saved = await write;
       if (saveQueues.current.get(id) === write) saveQueues.current.delete(id);
+      const synchronized = statementsRef.current.map((statement) => statement.id === id ? saved : statement);
+      statementsRef.current = synchronized;
+      setStatements(synchronized);
       if (message) setNotice(message);
       setError("");
     } catch (saveError) {
@@ -304,7 +323,7 @@ export default function BankStatementPage() {
         statementsRef.current = reverted;
         setStatements(reverted);
       }
-      setError(`Unable to save changes locally: ${saveError.message}`);
+      setError(`Unable to save changes to the backend: ${saveError.message}`);
     }
   };
 
@@ -428,18 +447,18 @@ export default function BankStatementPage() {
         matches: {},
       };
       setImportProgress(80);
-      await saveStatement(statement);
-      const nextStatements = [statement, ...statementsRef.current];
+      const savedStatement = await saveStatement(statement);
+      const nextStatements = [savedStatement, ...statementsRef.current];
       statementsRef.current = nextStatements;
       setStatements(nextStatements);
       setSelectedId(statement.id);
       setPending(null);
       setActiveTab("overview");
-      setNotice(`${records.length} transactions imported and stored in this browser.`);
+      setNotice(`${records.length} transactions imported to the shared backend.`);
       setError("");
       setImportProgress(100);
     } catch (saveError) {
-      setError(`Import could not be saved in local browser storage: ${saveError.message}`);
+      setError(`Import could not be saved to the backend: ${saveError.message}`);
     } finally {
       setFileBusy(false);
       window.setTimeout(() => setImportProgress(0), 700);
@@ -452,7 +471,7 @@ export default function BankStatementPage() {
     for (const key of ["openingBalance", "closingBalance"]) {
       metadata[key] = metadata[key] === "" || !Number.isFinite(Number(metadata[key])) ? null : Number(metadata[key]);
     }
-    updateStatement(selected.id, (item) => ({ ...item, metadata }), "Account and statement details saved locally.");
+    updateStatement(selected.id, (item) => ({ ...item, metadata }), "Account and statement details saved to the backend.");
   };
   const changeMetadata = (key, value) => setMetadataDraft((current) => ({ ...selected.metadata, ...current, [key]: value }));
   const updateTransaction = (id, changes) => updateStatement(selected.id, (item) => ({
@@ -463,7 +482,7 @@ export default function BankStatementPage() {
     ...item, exceptionStatus: { ...item.exceptionStatus, [exception.id]: value },
   }));
   const removeImport = async (statement) => {
-    if (!window.confirm(`Delete "${statement.fileName}" and all its locally stored transactions? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${statement.fileName}" and its shared transactions and original file? This cannot be undone.`)) return;
     try {
       const pendingWrite = saveQueues.current.get(statement.id);
       if (pendingWrite) await pendingWrite;
@@ -472,7 +491,7 @@ export default function BankStatementPage() {
       statementsRef.current = remaining;
       setStatements(remaining);
       setSelectedId(remaining[0]?.id ?? "");
-      setNotice("Import and stored original file deleted.");
+      setNotice("Import and original file deleted from the backend.");
       setError("");
     } catch (deleteError) {
       setError(`Unable to delete the import: ${deleteError.message}`);
@@ -572,7 +591,7 @@ export default function BankStatementPage() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-accent">{t("Local-only statement workspace", "مساحة كشوف الحساب المحلية")}</p>
         <h2 className="mt-1 text-xl font-bold text-navy">{t("Bank Statement", "كشف الحساب البنكي")}</h2>
-        <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("Import and analyze bank workbooks locally in this browser. No live banking connection or cloud sync.", "استورد وحلل كشوف البنك محلياً في هذا المتصفح. لا يوجد اتصال مصرفي مباشر أو مزامنة سحابية.")}</p>
+        <p className="mt-1 max-w-3xl text-sm text-slate-500">{t("Import and analyze workbooks with records synchronized through the shared backend. No live banking connection is performed.", "استورد وحلل الكشوف مع مزامنة السجلات عبر الخادم المشترك. لا يتم إجراء اتصال مصرفي مباشر.")}</p>
       </div>
       {selected && <div className="flex flex-wrap items-end gap-2">
         <SelectField label={t("Selected import", "الاستيراد المحدد")} value={selected.id} onChange={(event) => setSelectedId(event.target.value)} className="min-w-[220px]">
@@ -594,7 +613,7 @@ export default function BankStatementPage() {
     {loading && <Card className="p-8 text-center text-sm text-slate-500">Loading local statements…</Card>}
 
     {!loading && <Card className="p-4 sm:p-5">
-      <SectionTitle title={t("Import bank statement", "استيراد كشف حساب")} subtitle={t("Supported: Excel (.xlsx, .xls) and CSV. Imported records and original file remain in this browser.", "الصيغ المدعومة: Excel وCSV. تبقى البيانات والملف الأصلي محفوظة في هذا المتصفح.")} />
+      <SectionTitle title={t("Import bank statement", "استيراد كشف حساب")} subtitle={t("Supported: Excel (.xlsx, .xls) and CSV. Imported transactions and original files are stored in the shared backend.", "الصيغ المدعومة: Excel وCSV. تُحفظ المعاملات والملفات الأصلية في الخادم المشترك.")} />
       <div onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); prepareFile(event.dataTransfer.files[0]); }}
         className={`rounded-xl border-2 border-dashed p-6 text-center transition ${dragging ? "border-accent bg-sky-50" : "border-slate-200 bg-slate-50/60"}`}>
         <FileUp className="mx-auto mb-2 text-accent" size={28} />
@@ -656,7 +675,7 @@ export default function BankStatementPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Statement status</span><StatusPill tone={status === "Reconciled" ? "green" : status === "Reconciliation Difference" || status === "Import Failed" ? "red" : "amber"}>{status}</StatusPill></div>
-        <span className="text-xs text-slate-400"><ShieldAlert className="me-1 inline" size={13} />Data is stored locally in this browser only.</span>
+        <span className="text-xs text-slate-400"><ShieldAlert className="me-1 inline" size={13} />Data is stored in the authenticated shared backend.</span>
       </div>
 
       <div className="scrollbar-thin flex gap-2 overflow-x-auto border-b border-slate-200 pb-2">
@@ -771,14 +790,14 @@ export default function BankStatementPage() {
       </Card>}
 
       {activeTab === "history" && <Card className="p-4 sm:p-5">
-        <SectionTitle title="Import history" subtitle="View, reopen, export originals or delete local imports. Duplicate imports require explicit confirmation." action={<Button variant="outline" onClick={() => downloadRows(transactions, "bank-statement-backup", "xlsx").catch((downloadError) => setError(`Unable to export backup: ${downloadError.message}`))}><ArrowDownToLine size={15} />Export selected backup</Button>} />
+        <SectionTitle title="Import history" subtitle="View, reopen, export originals or delete shared imports. Duplicate imports require explicit confirmation." action={<Button variant="outline" onClick={() => downloadRows(transactions, "bank-statement-backup", "xlsx").catch((downloadError) => setError(`Unable to export backup: ${downloadError.message}`))}><ArrowDownToLine size={15} />Export selected backup</Button>} />
         <div className="scrollbar-thin overflow-x-auto"><table className="w-full min-w-[1050px] text-start text-xs"><thead><tr className="border-y border-slate-100 bg-slate-50 text-slate-500">{["File", "Bank / account", "Period", "Imported", "Transactions", "Credits", "Debits", "Closing balance", "Status", "Actions"].map((heading) => <th key={heading} className="px-3 py-3 font-semibold">{heading}</th>)}</tr></thead>
-          <tbody>{statements.map((statement) => { const summary = getTotals(statement); const rowStatus = Math.abs(summary.difference ?? Infinity) <= 0.01 ? "Reconciled" : summary.difference === null ? "Pending Review" : "Reconciliation Difference"; return <tr key={statement.id} className="border-b border-slate-100"><td className="max-w-[180px] truncate px-3 py-3 font-semibold">{statement.fileName}</td><td className="px-3 py-3">{statement.metadata.bankName || "—"} · {maskedAccount(statement.metadata.accountNumber)}</td><td className="px-3 py-3">{shortDate(statement.metadata.startDate)} – {shortDate(statement.metadata.endDate)}</td><td className="px-3 py-3">{new Date(statement.importedAt).toLocaleString()}</td><td className="px-3 py-3">{summary.count}</td><td className="px-3 py-3 text-emerald-700">{money(summary.deposits, statement.metadata.currency)}</td><td className="px-3 py-3 text-rose-700">{money(summary.withdrawals, statement.metadata.currency)}</td><td className="px-3 py-3">{money(summary.closing, statement.metadata.currency)}</td><td className="px-3 py-3"><StatusPill tone={rowStatus === "Reconciled" ? "green" : rowStatus === "Reconciliation Difference" ? "red" : "amber"}>{rowStatus}</StatusPill></td><td className="px-3 py-3"><div className="flex gap-2"><button onClick={() => { setSelectedId(statement.id); setActiveTab("overview"); }} className="font-semibold text-accent">Open</button><button onClick={() => { try { downloadOriginal(statement); } catch (downloadError) { setError(downloadError.message); } }} className="font-semibold text-slate-600">Original</button><button aria-label={`Delete ${statement.fileName}`} onClick={() => removeImport(statement)} className="text-rose-600"><Trash2 size={15} /></button></div></td></tr>; })}{!statements.length && <tr><td colSpan="10" className="px-3 py-10 text-center text-slate-400">No statements imported yet.</td></tr>}</tbody>
+          <tbody>{statements.map((statement) => { const summary = getTotals(statement); const rowStatus = Math.abs(summary.difference ?? Infinity) <= 0.01 ? "Reconciled" : summary.difference === null ? "Pending Review" : "Reconciliation Difference"; return <tr key={statement.id} className="border-b border-slate-100"><td className="max-w-[180px] truncate px-3 py-3 font-semibold">{statement.fileName}</td><td className="px-3 py-3">{statement.metadata.bankName || "—"} · {maskedAccount(statement.metadata.accountNumber)}</td><td className="px-3 py-3">{shortDate(statement.metadata.startDate)} – {shortDate(statement.metadata.endDate)}</td><td className="px-3 py-3">{new Date(statement.importedAt).toLocaleString()}</td><td className="px-3 py-3">{summary.count}</td><td className="px-3 py-3 text-emerald-700">{money(summary.deposits, statement.metadata.currency)}</td><td className="px-3 py-3 text-rose-700">{money(summary.withdrawals, statement.metadata.currency)}</td><td className="px-3 py-3">{money(summary.closing, statement.metadata.currency)}</td><td className="px-3 py-3"><StatusPill tone={rowStatus === "Reconciled" ? "green" : rowStatus === "Reconciliation Difference" ? "red" : "amber"}>{rowStatus}</StatusPill></td><td className="px-3 py-3"><div className="flex gap-2"><button onClick={() => { setSelectedId(statement.id); setActiveTab("overview"); }} className="font-semibold text-accent">Open</button><button onClick={async () => { try { await downloadOriginal(statement); } catch (downloadError) { setError(downloadError.message); } }} className="font-semibold text-slate-600">Original</button><button aria-label={`Delete ${statement.fileName}`} onClick={() => removeImport(statement)} className="text-rose-600"><Trash2 size={15} /></button></div></td></tr>; })}{!statements.length && <tr><td colSpan="10" className="px-3 py-10 text-center text-slate-400">No statements imported yet.</td></tr>}</tbody>
         </table></div>
       </Card>}
     </>}
 
-    {!loading && !selected && !pending && <Card className="p-8 text-center"><Wallet size={28} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-600">Upload a statement to get started.</p><p className="mt-1 text-xs text-slate-400">Your statement is processed and stored locally; it is not sent to any external service.</p></Card>}
+    {!loading && !selected && !pending && <Card className="p-8 text-center"><Wallet size={28} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-600">Upload a statement to get started.</p><p className="mt-1 text-xs text-slate-400">The original file and processed statement will be saved to the authenticated backend.</p></Card>}
 
     {detail && <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/40 p-4" onClick={() => setDetail(null)}><div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
       <div className="mb-4 flex items-start justify-between"><div><h3 className="text-lg font-bold text-navy">Transaction details</h3><p className="mt-1 text-xs text-slate-500">Original imported values are preserved in the source workbook.</p></div><button onClick={() => setDetail(null)} aria-label="Close dialog" className="text-slate-400">×</button></div>

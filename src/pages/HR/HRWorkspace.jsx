@@ -214,37 +214,23 @@ export function HRWorkspace() {
 
   useEffect(() => {
     let active = true
-    async function loadRecords() {
+    const loadRecords = async () => {
       try {
-        let rows = await api.list('hr')
-        const saved = localStorage.getItem('taskflow_hr_records')
-        const legacyRecords = saved ? JSON.parse(saved) : []
-        if (
-          !Array.isArray(legacyRecords) ||
-          legacyRecords.some((record) =>
-            !record || typeof record.id !== 'string' || typeof record.module !== 'string' ||
-            !MODULE_BY_ID.has(record.module) || !record.data || typeof record.data !== 'object' ||
-            Array.isArray(record.data) ||
-            Object.values(record.data).some((value) => typeof value !== 'string')
-          )
-        ) {
-          throw new Error('Stored HR data has an invalid format.')
-        }
-        const existingIds = new Set(rows.map((row) => row.id))
-        const missingRecords = legacyRecords.filter((record) => !existingIds.has(record.id))
-        await Promise.all(missingRecords.map((record) => api.put(`hr/${record.id}`, record)))
-        rows = [...rows, ...missingRecords.map((record) => ({ id: record.id, data: record }))]
-        if (saved) localStorage.removeItem('taskflow_hr_records')
+        const rows = await api.list('hr')
         if (active) setRecords(rows.map((row) => ({ ...row.data, id: row.id })))
       } catch (error) {
-        if (active) setStorageError(`Could not load HR records: ${error.message}`)
+        if (active) setStorageError(`Could not load HR records from the backend: ${error.message}`)
       } finally {
         if (active) setStorageReady(true)
       }
     }
     loadRecords()
+    const poll = window.setInterval(() => {
+      if (!document.hidden) loadRecords()
+    }, 15000)
     return () => {
       active = false
+      window.clearInterval(poll)
     }
   }, [])
 

@@ -1,74 +1,54 @@
-const DATABASE_NAME = "natheel-accounting-records";
-const DATABASE_VERSION = 1;
-const STORE_NAME = "application-state";
-const STATE_ID = "accounting";
-const DOCUMENTS_STATE_ID = "documents";
+import { api, request } from "../../../src/services/api.js";
 
-function openDatabase() {
-  if (!globalThis.indexedDB) {
-    return Promise.reject(new Error("This browser does not support IndexedDB, so accounting records cannot be saved."));
-  }
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-        request.result.createObjectStore(STORE_NAME, { keyPath: "id" });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to open local accounting storage."));
-    request.onblocked = () => reject(new Error("Accounting storage is blocked by another browser tab. Close other tabs and retry."));
-  });
-}
+const ACCOUNTING_PATH = "cashbankAccounting/main";
+const DOCUMENTS_COLLECTION = "cashbankDocuments";
 
 export async function loadAccountingState() {
-  const database = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readonly");
-    const request = transaction.objectStore(STORE_NAME).get(STATE_ID);
-    request.onsuccess = () => resolve(request.result?.state ?? null);
-    request.onerror = () => reject(request.error ?? new Error("Unable to read accounting records."));
-    transaction.oncomplete = () => database.close();
-    transaction.onabort = () => reject(transaction.error ?? new Error("Reading accounting records was aborted."));
-  });
+  const result = await api.get(ACCOUNTING_PATH);
+  return result.exists ? result.data : null;
 }
 
-export async function saveAccountingState(state) {
-  const database = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put({ id: STATE_ID, state });
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to save accounting records."));
-    transaction.onabort = () => reject(transaction.error ?? new Error("Saving accounting records was aborted."));
-  });
+export function saveAccountingState(state) {
+  return api.patch(ACCOUNTING_PATH, state);
 }
 
 export async function loadDocumentsState() {
-  const database = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readonly");
-    const request = transaction.objectStore(STORE_NAME).get(DOCUMENTS_STATE_ID);
-    request.onsuccess = () => resolve(request.result?.state ?? null);
-    request.onerror = () => reject(request.error ?? new Error("Unable to read invoice records."));
-    transaction.oncomplete = () => database.close();
-    transaction.onabort = () => reject(transaction.error ?? new Error("Reading invoice records was aborted."));
-  });
+  const rows = await api.list(DOCUMENTS_COLLECTION);
+  return rows.map(({ id, data }) => ({ ...data, id }));
 }
 
-export async function saveDocumentsState(state) {
-  const database = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put({ id: DOCUMENTS_STATE_ID, state });
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to save invoice records."));
-    transaction.onabort = () => reject(transaction.error ?? new Error("Saving invoice records was aborted."));
+export async function saveDocument(document) {
+  const { id, ...data } = document;
+  await api.put(`${DOCUMENTS_COLLECTION}/${id}`, data);
+}
+
+export async function loadPurchases() {
+  const rows = await api.list("cashbankPurchases");
+  return rows.map(({ id, data }) => ({ ...data, id }));
+}
+
+export async function savePurchase(purchase) {
+  const { id, ...data } = purchase;
+  await api.put(`cashbankPurchases/${id}`, data);
+}
+
+export function updatePurchaseRecord(id, updates) {
+  return api.patch(`cashbankPurchases/${id}`, updates);
+}
+
+export async function loadTaxReturnDate() {
+  const result = await api.get("cashbankSettings/taxReturn");
+  return result.exists ? result.data.lastSubmittedDate || "" : "";
+}
+
+export async function saveTaxReturnDate(lastSubmittedDate) {
+  await api.patch("cashbankSettings/taxReturn", { lastSubmittedDate });
+}
+
+export async function reserveAdjustmentNumbers(kind, year, count) {
+  return request("/api/cashbank/sequences", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, year, count }),
   });
 }

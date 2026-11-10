@@ -1,114 +1,128 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { initialDocuments } from "../data/documents";
 import { getLocalDateOnly, isValidDateOnly } from "../utils/taxReturnSchedule";
 import { createAdjustmentDraft, transitionAdjustment } from "../utils/adjustmentNotes";
-import { loadAccountingState, loadDocumentsState, saveAccountingState, saveDocumentsState } from "../utils/accountingRepository";
+import {
+  loadAccountingState,
+  loadDocumentsState,
+  loadPurchases,
+  loadTaxReturnDate,
+  reserveAdjustmentNumbers,
+  saveAccountingState,
+  saveDocument,
+  savePurchase,
+  saveTaxReturnDate,
+  updatePurchaseRecord,
+} from "../utils/accountingRepository";
 
 const AppContext = createContext(null);
-const TAX_RETURN_STORAGE_KEY = "natheel-tax-return-last-submitted";
-const PURCHASES_STORAGE_KEY = "natheel-vendor-bills";
 const EMPTY_ACCOUNTING_STATE = { notes: [], sequences: {}, audit: [] };
 
-export function AppProvider({ children }) {
+export function AppProvider({ children, user }) {
   const today = getLocalDateOnly();
   const [branch, setBranch] = useState("all");
   const [language, setLanguage] = useState("en");
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
   const [dateFrom, setDateFrom] = useState(() => `${today.slice(0, 7)}-01`);
   const [dateTo, setDateTo] = useState(today);
-  const [documentState, setDocumentState] = useState({ items: initialDocuments, ready: false, storageError: "" });
+  const [documentState, setDocumentState] = useState({ items: [], ready: false, storageError: "" });
   const documentStateRef = useRef(documentState);
   const documentWriteQueue = useRef(Promise.resolve());
+  const documentWriting = useRef(false);
   const documents = documentState.items;
-  const [purchaseState, setPurchaseState] = useState(() => {
-    try {
-      const savedPurchases = window.localStorage.getItem(PURCHASES_STORAGE_KEY);
-      if (!savedPurchases) return { items: [], storageError: "" };
-      const items = JSON.parse(savedPurchases);
-      if (!Array.isArray(items)) throw new Error("Saved bills must be a list.");
-      return { items, storageError: "" };
-    } catch (error) {
-      return {
-        items: [],
-        storageError: `Saved bills could not be loaded from this browser: ${error.message}`,
-      };
-    }
-  });
+  const [purchaseState, setPurchaseState] = useState({ items: [], ready: false, storageError: "" });
   const { items: purchases, storageError: purchaseStorageError } = purchaseState;
   const [accountingState, setAccountingState] = useState({ ...EMPTY_ACCOUNTING_STATE, ready: false, storageError: "" });
   const accountingStateRef = useRef(accountingState);
   const accountingWriteQueue = useRef(Promise.resolve());
+  const accountingWriting = useRef(false);
+  const purchaseWrites = useRef(new Set());
+  const taxReturnWriting = useRef(false);
   useEffect(() => {
     let active = true;
-    loadDocumentsState().then((savedDocuments) => {
+    const refresh = async () => {
+      const results = await Promise.allSettled([
+        loadDocumentsState(),
+        loadPurchases(),
+        loadAccountingState(),
+        loadTaxReturnDate(),
+      ]);
       if (!active) return;
-      const loaded = { items: Array.isArray(savedDocuments) ? savedDocuments : initialDocuments, ready: true, storageError: "" };
-      documentStateRef.current = loaded;
-      setDocumentState(loaded);
-    }).catch((error) => {
-      if (!active) return;
-      const failed = { items: initialDocuments, ready: true, storageError: error.message };
-      documentStateRef.current = failed;
-      setDocumentState(failed);
-    });
-    return () => { active = false; };
+      const [documentResult, purchaseResult, accountingResult, taxResult] = results;
+      if (documentResult.status === "fulfilled" && !documentWriting.current) {
+        const loaded = { items: documentResult.value, ready: true, storageError: "" };
+        documentStateRef.current = loaded;
+        setDocumentState(loaded);
+      } else if (documentResult.status === "rejected") {
+        const failed = { ...documentStateRef.current, ready: true, storageError: documentResult.reason.message };
+        documentStateRef.current = failed;
+        setDocumentState(failed);
+      }
+      if (purchaseResult.status === "fulfilled") {
+        setPurchaseState((current) => ({
+          items: purchaseWrites.current.size ? current.items : purchaseResult.value,
+          ready: true,
+          storageError: "",
+        }));
+      } else {
+        setPurchaseState((current) => ({ ...current, ready: true, storageError: purchaseResult.reason.message }));
+      }
+      if (accountingResult.status === "fulfilled" && !accountingWriting.current) {
+        const loaded = { ...EMPTY_ACCOUNTING_STATE, ...(accountingResult.value ?? {}), ready: true, storageError: "" };
+        accountingStateRef.current = loaded;
+        setAccountingState(loaded);
+      } else if (accountingResult.status === "rejected") {
+        const failed = { ...accountingStateRef.current, ready: true, storageError: accountingResult.reason.message };
+        accountingStateRef.current = failed;
+        setAccountingState(failed);
+      }
+      if (taxResult.status === "fulfilled") {
+        if (!taxReturnWriting.current) {
+          setTaxReturnSchedule({ lastSubmittedDate: taxResult.value, storageError: "" });
+        }
+      } else {
+        setTaxReturnSchedule((current) => ({ ...current, storageError: taxResult.reason.message }));
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
-  useEffect(() => {
-    let active = true;
-    loadAccountingState().then((savedState) => {
-      if (!active) return;
-      const loaded = { ...EMPTY_ACCOUNTING_STATE, ...(savedState ?? {}), ready: true, storageError: "" };
-      accountingStateRef.current = loaded;
-      setAccountingState(loaded);
-    }).catch((error) => {
-      if (!active) return;
-      const failed = { ...EMPTY_ACCOUNTING_STATE, ready: true, storageError: error.message };
-      accountingStateRef.current = failed;
-      setAccountingState(failed);
-    });
-    return () => { active = false; };
-  }, []);
-  const [taxReturnSchedule, setTaxReturnSchedule] = useState(() => {
-    try {
-      const savedDate = window.localStorage.getItem(TAX_RETURN_STORAGE_KEY);
-      if (!savedDate) return { lastSubmittedDate: "", storageError: "" };
-      if (isValidDateOnly(savedDate)) return { lastSubmittedDate: savedDate, storageError: "" };
-      return {
-        lastSubmittedDate: "",
-        storageError: "The saved tax return date is invalid. Save a valid date to replace it.",
-      };
-    } catch (error) {
-      return {
-        lastSubmittedDate: "",
-        storageError: `Tax return reminder could not read browser storage: ${error.message}`,
-      };
-    }
-  });
-  const setTaxReturnLastSubmittedDate = (date) => {
+  const [taxReturnSchedule, setTaxReturnSchedule] = useState({ lastSubmittedDate: "", storageError: "" });
+  const setTaxReturnLastSubmittedDate = async (date) => {
     if (!isValidDateOnly(date)) throw new Error("A valid submission date is required.");
-    setTaxReturnSchedule({ lastSubmittedDate: date, storageError: "" });
+    taxReturnWriting.current = true;
     try {
-      window.localStorage.setItem(TAX_RETURN_STORAGE_KEY, date);
-    } catch (error) {
-      setTaxReturnSchedule({
-        lastSubmittedDate: date,
-        storageError: `The reminder date was updated for this session, but could not be saved in this browser: ${error.message}`,
-      });
+      await saveTaxReturnDate(date);
+      setTaxReturnSchedule({ lastSubmittedDate: date, storageError: "" });
+    } finally {
+      taxReturnWriting.current = false;
     }
   };
   const addDocuments = (type, newDocuments) => {
     const operation = documentWriteQueue.current.then(async () => {
       if (!documentStateRef.current.ready) throw new Error("Document storage is still loading. Try again shortly.");
       if (documentStateRef.current.storageError) throw new Error(documentStateRef.current.storageError);
-      const updatedDocuments = [
-        ...documentStateRef.current.items,
-        ...newDocuments.map((document) => ({ ...document, id: `DOC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, type })),
-      ];
-      await saveDocumentsState(updatedDocuments);
-      const loaded = { items: updatedDocuments, ready: true, storageError: "" };
-      documentStateRef.current = loaded;
-      setDocumentState(loaded);
-      return updatedDocuments;
+      documentWriting.current = true;
+      const additions = newDocuments.map((document) => ({
+        ...document,
+        id: `DOC-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}`,
+        type,
+        createdBy: user.name,
+        createdAt: new Date().toISOString(),
+      }));
+      try {
+        for (const document of additions) await saveDocument(document);
+        const updatedDocuments = [...documentStateRef.current.items, ...additions];
+        const loaded = { items: updatedDocuments, ready: true, storageError: "" };
+        documentStateRef.current = loaded;
+        setDocumentState(loaded);
+        return updatedDocuments;
+      } finally {
+        documentWriting.current = false;
+      }
     });
     documentWriteQueue.current = operation.then(() => undefined, () => undefined);
     return operation.catch((error) => {
@@ -118,26 +132,42 @@ export function AppProvider({ children }) {
       throw error;
     });
   };
-  const addPurchase = (purchase) => {
-    const updatedPurchases = [...purchaseState.items, purchase];
+  const addPurchase = async (purchase) => {
+    if (!purchaseState.ready) throw new Error("Purchase storage is still loading. Try again shortly.");
+    purchaseWrites.current.add(purchase.id);
     try {
-      window.localStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(updatedPurchases));
-      setPurchaseState({ items: updatedPurchases, storageError: "" });
+      await savePurchase({ ...purchase, createdBy: user.name, createdAt: new Date().toISOString() });
+      setPurchaseState((current) => ({
+        items: [...current.items, purchase],
+        ready: true,
+        storageError: "",
+      }));
     } catch (error) {
-      const storageError = `The bill could not be saved in this browser: ${error.message}`;
+      const storageError = `The bill could not be saved to the backend: ${error.message}`;
       setPurchaseState((current) => ({ ...current, storageError }));
       throw new Error(storageError);
+    } finally {
+      purchaseWrites.current.delete(purchase.id);
     }
   };
-  const updatePurchase = (id, updates) => {
-    const updatedPurchases = purchaseState.items.map((purchase) => purchase.id === id ? { ...purchase, ...updates } : purchase);
+  const updatePurchase = async (id, updates) => {
+    if (!purchaseState.ready) throw new Error("Purchase storage is still loading. Try again shortly.");
+    const currentPurchase = purchaseState.items.find((purchase) => purchase.id === id);
+    if (!currentPurchase) throw new Error("The purchase record was not found.");
+    purchaseWrites.current.add(id);
     try {
-      window.localStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(updatedPurchases));
-      setPurchaseState({ items: updatedPurchases, storageError: "" });
+      await updatePurchaseRecord(id, { ...updates, updatedBy: user.name, updatedAt: new Date().toISOString() });
+      setPurchaseState((current) => ({
+        items: current.items.map((purchase) => purchase.id === id ? { ...purchase, ...updates } : purchase),
+        ready: true,
+        storageError: "",
+      }));
     } catch (error) {
-      const storageError = `The bill could not be updated in this browser: ${error.message}`;
+      const storageError = `The bill could not be updated in the backend: ${error.message}`;
       setPurchaseState((current) => ({ ...current, storageError }));
       throw new Error(storageError);
+    } finally {
+      purchaseWrites.current.delete(id);
     }
   };
   const invoiceSources = [
@@ -172,13 +202,19 @@ export function AppProvider({ children }) {
     const operation = accountingWriteQueue.current.then(async () => {
       if (!accountingStateRef.current.ready) throw new Error("Accounting storage is still loading. Try again shortly.");
       if (accountingStateRef.current.storageError) throw new Error(accountingStateRef.current.storageError);
-      const nextState = mutator(accountingStateRef.current);
-      const persistedState = { notes: nextState.notes, sequences: nextState.sequences, audit: nextState.audit };
-      await saveAccountingState(persistedState);
-      const loaded = { ...persistedState, ready: true, storageError: "" };
-      accountingStateRef.current = loaded;
-      setAccountingState(loaded);
-      return loaded;
+      accountingWriting.current = true;
+      try {
+        const nextState = await mutator(accountingStateRef.current);
+        const persistedState = { notes: nextState.notes, sequences: nextState.sequences, audit: nextState.audit };
+        await saveAccountingState(persistedState);
+        const remoteState = await loadAccountingState();
+        const loaded = { ...EMPTY_ACCOUNTING_STATE, ...(remoteState ?? persistedState), ready: true, storageError: "" };
+        accountingStateRef.current = loaded;
+        setAccountingState(loaded);
+        return loaded;
+      } finally {
+        accountingWriting.current = false;
+      }
     });
     accountingWriteQueue.current = operation.then(() => undefined, () => undefined);
     return operation.catch((error) => {
@@ -188,31 +224,47 @@ export function AppProvider({ children }) {
       throw error;
     });
   };
-  const createAdjustment = (kind, values) => persistAccountingMutation((current) => {
+  const createAdjustment = (kind, values) => persistAccountingMutation(async (current) => {
     const fiscalYear = values.issueDate?.slice(0, 4);
-    const sequenceKey = `${kind}-${fiscalYear}`;
-    const sequence = (current.sequences[sequenceKey] ?? 0) + 1;
+    const reservation = await reserveAdjustmentNumbers(kind, fiscalYear, 1);
+    const sequence = reservation.first;
     const prefix = kind === "credit" ? "CN" : "DN";
     const number = `${prefix}-${fiscalYear}-${String(sequence).padStart(6, "0")}`;
-    const note = createAdjustmentDraft({ kind, number, values });
+    const note = createAdjustmentDraft({ kind, number, values, actor: user.name });
     const event = { ...note.history[0], documentNumber: note.number, documentId: note.id };
     return {
       ...current,
-      sequences: { ...current.sequences, [sequenceKey]: sequence },
+      sequences: { ...current.sequences, [reservation.sequenceKey]: reservation.last },
       notes: [...current.notes, note],
       audit: [...current.audit, event],
     };
   });
-  const createAdjustments = (kind, valuesList) => persistAccountingMutation((current) => {
-    let sequences = current.sequences;
-    const notes = valuesList.map((values) => {
+  const createAdjustments = (kind, valuesList) => persistAccountingMutation(async (current) => {
+    const indexesByYear = new Map();
+    valuesList.forEach((values, index) => {
+      const year = values.issueDate?.slice(0, 4);
+      indexesByYear.set(year, [...(indexesByYear.get(year) || []), index]);
+    });
+    const sequences = { ...current.sequences };
+    const numbers = new Array(valuesList.length);
+    for (const [year, indexes] of indexesByYear) {
+      let remaining = indexes.length;
+      while (remaining > 0) {
+        const count = Math.min(remaining, 100);
+        const reservation = await reserveAdjustmentNumbers(kind, year, count);
+        const offset = indexes.length - remaining;
+        for (let index = 0; index < count; index += 1) {
+          numbers[indexes[offset + index]] = reservation.first + index;
+        }
+        sequences[reservation.sequenceKey] = reservation.last;
+        remaining -= count;
+      }
+    }
+    const prefix = kind === "credit" ? "CN" : "DN";
+    const notes = valuesList.map((values, index) => {
       const fiscalYear = values.issueDate?.slice(0, 4);
-      const sequenceKey = `${kind}-${fiscalYear}`;
-      const sequence = (sequences[sequenceKey] ?? 0) + 1;
-      const prefix = kind === "credit" ? "CN" : "DN";
-      const number = `${prefix}-${fiscalYear}-${String(sequence).padStart(6, "0")}`;
-      sequences = { ...sequences, [sequenceKey]: sequence };
-      return createAdjustmentDraft({ kind, number, values });
+      const number = `${prefix}-${fiscalYear}-${String(numbers[index]).padStart(6, "0")}`;
+      return createAdjustmentDraft({ kind, number, values, actor: user.name });
     });
     return {
       ...current,
@@ -225,11 +277,11 @@ export function AppProvider({ children }) {
     const existing = current.notes.find((note) => note.id === id);
     if (!existing) throw new Error("The adjustment document was not found.");
     if (existing.status !== "Draft") throw new Error("Only draft adjustment documents can be edited.");
-    const updatedDraft = createAdjustmentDraft({ kind: existing.kind, number: existing.number, values });
+    const updatedDraft = createAdjustmentDraft({ kind: existing.kind, number: existing.number, values, actor: user.name });
     const at = new Date().toISOString();
     const historyEntry = {
       action: "Draft updated",
-      actor: "Local workspace user",
+      actor: user.name,
       at,
       previousValue: existing,
       newValue: updatedDraft,
@@ -253,6 +305,7 @@ export function AppProvider({ children }) {
     const note = current.notes.find((item) => item.id === id);
     if (!note) throw new Error("The adjustment document was not found.");
     const updated = transitionAdjustment(note, action, {
+      actor: user.name,
       reason,
       invoices: invoiceSources,
       adjustments: current.notes,

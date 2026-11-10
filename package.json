@@ -9,10 +9,8 @@
   "scripts": {
     "predev": "npm run build:cash-bank",
     "dev": "vite --host 0.0.0.0",
-    "dev:frontend-only": "vite --host 0.0.0.0 --mode frontend-only",
     "prebuild": "npm run build:cash-bank",
     "build": "vite build",
-    "build:frontend-only": "vite build --mode frontend-only",
     "build:cash-bank": "npm run build --workspace=saudi-cash-control-dashboard -- --base=/cash-bank/ --outDir=../public/cash-bank --emptyOutDir",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit"

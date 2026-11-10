@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../ui/Button.jsx'
 import { request } from '../../services/api.js'
-import { rememberFrontendSession, clearFrontendRememberedSession } from '../../utils/session.js'
-import { DEFAULT_FRONTEND_DEMO_PIN } from '../../utils/constants.js'
 
-export function PinGate({ auth, demoPin, roleUsers = [], onPinCreated, onAuthenticated }) {
+export function PinGate({ auth, onAuthenticated }) {
   const [pin, setPin] = useState('')
   const [firstPin, setFirstPin] = useState('')
   const [message, setMessage] = useState('')
@@ -31,51 +29,16 @@ export function PinGate({ auth, demoPin, roleUsers = [], onPinCreated, onAuthent
     setBusy(true)
     setMessage('Checking…')
     try {
-      if (auth.frontendOnly) {
-        const stored = demoPin || (typeof window !== 'undefined' ? localStorage.getItem('taskflow_demo_pin') : '') || ''
-        const roleUser = pin.length === 4 ? roleUsers.find((user) => user.pin === pin) : null
-        if (!setup && roleUser && pin !== stored) {
-          if (remember) rememberFrontendSession(roleUser.id)
-          else clearFrontendRememberedSession()
-          onAuthenticated({
-            ...auth,
-            authed: true,
-            configured: true,
-            frontendOnly: true,
-            activeUser: { ...roleUser, isAdmin: false },
-          })
-          return
-        }
-        if (setup) {
-          try {
-            localStorage.setItem('taskflow_demo_pin', pin)
-          } catch {}
-          onPinCreated(pin)
-          if (remember) rememberFrontendSession()
-          else clearFrontendRememberedSession()
-          onAuthenticated({
-            authed: true,
-            configured: true,
-            frontendOnly: true,
-            activeUser: { id: 'admin', name: 'Admin', isAdmin: true },
-          })
-        } else if (pin === DEFAULT_FRONTEND_DEMO_PIN || pin === demoPin || (stored && pin === stored)) {
-          if (remember) rememberFrontendSession()
-          else clearFrontendRememberedSession()
-          onAuthenticated({ ...auth, authed: true, activeUser: { id: 'admin', name: 'Admin', isAdmin: true } })
-        } else {
-          setMessage('Incorrect PIN.')
-        }
-        return
-      }
-
       const body = await request('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: setup ? 'setup' : 'login', pin, remember }),
       })
-      if (body.ok) onAuthenticated({ ...body, authed: true, configured: true, frontendOnly: false })
-      else setMessage(body.error || 'Could not unlock dashboard.')
+      if (body.ok) {
+        await onAuthenticated({ ...body, authed: true, configured: true })
+      } else {
+        setMessage(body.error || 'Could not unlock dashboard.')
+      }
     } catch (error) {
       setMessage(error.message)
       setPin('')
@@ -112,34 +75,21 @@ export function PinGate({ auth, demoPin, roleUsers = [], onPinCreated, onAuthent
             <i className={index < pin.length ? 'f' : ''} key={index} />
           ))}
         </div>
-        <div className="lkm" role="status">
-          {message}
-        </div>
+        <div className="lkm" role="status">{message}</div>
         <div className="kp">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
             <button key={number} onClick={() => setPin((current) => (current + number).slice(0, 8))} type="button">
               {number}
             </button>
           ))}
-          <button className="x" onClick={() => setPin('')} type="button">
-            Clear
-          </button>
-          <button onClick={() => setPin((current) => (current + '0').slice(0, 8))} type="button">
-            0
-          </button>
-          <button className="x" onClick={() => setPin((current) => current.slice(0, -1))} type="button">
-            ⌫
-          </button>
+          <button className="x" onClick={() => setPin('')} type="button">Clear</button>
+          <button onClick={() => setPin((current) => (current + '0').slice(0, 8))} type="button">0</button>
+          <button className="x" onClick={() => setPin((current) => current.slice(0, -1))} type="button">⌫</button>
         </div>
         <label className="mu remember">
           <input checked={remember} onChange={(event) => setRemember(event.target.checked)} type="checkbox" /> Remember this device for 30 days
         </label>
-        {auth.frontendOnly && roleUsers.length > 0 && (
-          <p className="pin-user-hint">
-            {roleUsers.length} user PIN{roleUsers.length === 1 ? '' : 's'} available
-          </p>
-        )}
-        {!auth.frontendOnly && <p className="pin-user-hint">Sign in with your admin PIN or assigned user PIN.</p>}
+        <p className="pin-user-hint">Sign in with your admin PIN or assigned user PIN.</p>
         <Button disabled={busy || pin.length < 4} primary type="submit">
           {busy ? 'Please wait…' : setup ? 'Continue' : 'Unlock'}
         </Button>

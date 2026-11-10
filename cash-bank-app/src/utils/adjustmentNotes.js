@@ -41,7 +41,8 @@ function validDate(value) {
     && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 }
 
-export function createAdjustmentDraft({ kind, number, values, now = new Date().toISOString(), actor = "Local workspace user" }) {
+export function createAdjustmentDraft({ kind, number, values, now = new Date().toISOString(), actor }) {
+  if (typeof actor !== "string" || !actor.trim()) throw new Error("A signed-in user is required.");
   if (!["credit", "debit"].includes(kind)) throw new Error("Adjustment kind must be credit or debit.");
   if (!number || !new RegExp(`^${kind === "credit" ? "CN" : "DN"}-\\d{4}-\\d{6}$`).test(number)) {
     throw new Error("A valid unique adjustment number is required.");
@@ -126,13 +127,14 @@ export function validateNoteForIssue(note, invoices, adjustments, payments = [])
   return validateAdjustmentAgainstInvoice({ note, invoice, adjustments, payments });
 }
 
-export function transitionAdjustment(note, action, { actor = "Local workspace user", reason = "", now = new Date().toISOString(), invoices = [], adjustments = [], payments = [] } = {}) {
+export function transitionAdjustment(note, action, { actor, reason = "", now = new Date().toISOString(), invoices = [], adjustments = [], payments = [] } = {}) {
+  if (typeof actor !== "string" || !actor.trim()) throw new Error("A signed-in user is required.");
   const transitions = {
     submit: { from: "Draft", to: "Pending Approval", auditAction: "Submitted for approval" },
-    approve: { from: "Pending Approval", to: "Approved", auditAction: "Approved in local workflow" },
+    approve: { from: "Pending Approval", to: "Approved", auditAction: "Approved" },
     reject: { from: "Pending Approval", to: "Rejected", auditAction: "Rejected" },
     reopen: { from: "Rejected", to: "Draft", auditAction: "Returned to draft" },
-    issue: { from: "Approved", to: "Issued", auditAction: "Issued in local workflow" },
+    issue: { from: "Approved", to: "Issued", auditAction: "Issued" },
     cancel: { from: ["Issued", "Partially Applied", "Fully Applied"], to: "Cancelled", auditAction: "Cancelled" },
   };
   const transition = transitions[action];

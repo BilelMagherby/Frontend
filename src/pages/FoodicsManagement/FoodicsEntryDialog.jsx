@@ -25,6 +25,7 @@ export function FoodicsEntryDialog({ section, onClose, onSave }) {
   const update = (key, value) => setValues((current) => ({ ...current, [key]: value }))
   const isVat = section.id === 'vat'
   const isBill = section.id === 'purchases' || section.id === 'sales'
+  const isAccount = section.id === 'accounts'
   const needsDate = section.id === 'vat' || isBill
 
   async function submit(event) {
@@ -33,6 +34,8 @@ export function FoodicsEntryDialog({ section, onClose, onSave }) {
     if (!values.title.trim()) return setError('Enter a clear title before saving.')
     if (needsDate && !values.date && !values.dueDate) return setError(isVat ? 'Choose the reminder due date.' : 'Choose the bill date.')
     if (isBill && !values.reference.trim()) return setError('Enter the bill or invoice reference.')
+    if (isAccount && !values.reference.trim()) return setError('Enter the account code.')
+    if (isAccount && !values.category) return setError('Choose the account type.')
     if (values.file && values.file.size > 100 * 1024 * 1024) return setError('Files must be 100 MB or smaller.')
     setSaving(true)
     setError('')
@@ -83,24 +86,37 @@ export function FoodicsEntryDialog({ section, onClose, onSave }) {
         </header>
         <div className="foodics-form-grid">
           <label className="foodics-field foodics-field-wide">
-            <span>{isVat ? 'Reminder name' : isBill ? 'Bill title' : 'Title'}</span>
+            <span>{isVat ? 'Reminder name' : isBill ? 'Bill title' : isAccount ? 'Account name' : 'Title'}</span>
             <input
               autoFocus
               maxLength="140"
               onChange={(event) => update('title', event.target.value)}
-              placeholder={isVat ? 'e.g. VAT return preparation' : 'Give this record a clear name'}
+              placeholder={isVat ? 'Enter reminder name' : isAccount ? 'Enter the actual account name' : 'Give this record a clear name'}
               required
               value={values.title}
             />
           </label>
-          {(section.id === 'reports' || section.id === 'documents') && (
+          {(section.id === 'reports' || section.id === 'documents' || isAccount) && (
             <label className="foodics-field">
-              <span>Classification</span>
-              <select onChange={(event) => update('category', event.target.value)} value={values.category}>
-                {(section.id === 'reports' ? REPORT_TYPES : DOCUMENT_TYPES).map((item) => (
+              <span>{isAccount ? 'Account type' : 'Classification'}</span>
+              <select onChange={(event) => update('category', event.target.value)} required={isAccount} value={values.category}>
+                {isAccount && <option disabled value="">Select account type</option>}
+                {(isAccount ? ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'] : section.id === 'reports' ? REPORT_TYPES : DOCUMENT_TYPES).map((item) => (
                   <option key={item}>{item}</option>
                 ))}
               </select>
+            </label>
+          )}
+          {isAccount && (
+            <label className="foodics-field">
+              <span>Account code</span>
+              <input
+                maxLength="40"
+                onChange={(event) => update('reference', event.target.value)}
+                placeholder="Enter code from your approved chart"
+                required
+                value={values.reference}
+              />
             </label>
           )}
           {isBill && (
@@ -228,4 +244,3 @@ export function FoodicsEntryDialog({ section, onClose, onSave }) {
     </div>
   )
 }
-

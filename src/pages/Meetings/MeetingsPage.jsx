@@ -7,87 +7,6 @@ import { projectName } from '../../utils/helpers.js'
 export function MeetingsPage({ platform, meetings = [], integration = {}, projects = [], onOpen, onSchedule, onStart }) {
   const isGoogle = platform === 'google'
   const label = isGoogle ? 'Google Meet' : 'Zoom'
-  const exampleSummaries = isGoogle
-    ? [
-        {
-          title: 'Weekly leadership sync',
-          focus: 'Operations & priorities',
-          summary:
-            'The team reviewed this week’s operational priorities, confirmed owners for open decisions, and agreed to raise supplier delays earlier in the weekly review.',
-          decisions: [
-            'Keep the weekly review focused on blockers and decisions.',
-            'Escalate supplier delays as soon as a delivery date is at risk.',
-          ],
-          actions: [
-            'Share the updated priority list before the next sync.',
-            'Bring the revised supplier timeline to the next review.',
-          ],
-        },
-        {
-          title: 'Project launch readiness',
-          focus: 'Project planning',
-          summary:
-            'The launch checklist was reviewed across marketing, operations, and customer support. The group agreed to validate dependencies before confirming the public launch date.',
-          decisions: ['Confirm cross-team dependencies before announcing the launch date.'],
-          actions: [
-            'Collect final readiness updates from each team.',
-            'Review open launch risks with project owners.',
-          ],
-        },
-        {
-          title: 'Monthly performance review',
-          focus: 'KPI review',
-          summary:
-            'Participants reviewed progress against monthly targets, discussed the largest changes since the previous review, and identified where follow-up analysis is needed.',
-          decisions: ['Use the same KPI definitions in the next monthly report.'],
-          actions: [
-            'Circulate the updated KPI breakdown.',
-            'Add context for metrics that changed significantly.',
-          ],
-        },
-        {
-          title: 'Customer experience review',
-          focus: 'Service improvement',
-          summary:
-            'The team discussed recurring customer feedback themes and prioritised improvements that can be tracked during the next service review.',
-          decisions: ['Prioritise the top recurring feedback themes for follow-up.'],
-          actions: ['Group feedback by theme.', 'Bring proposed service improvements to the next meeting.'],
-        },
-      ]
-    : [
-        {
-          title: 'Investor update call',
-          focus: 'Business update',
-          summary:
-            'The team aligned on the key business updates to share, reviewed the current risks, and agreed to circulate supporting figures before the next investor discussion.',
-          decisions: ['Use one approved set of figures across the investor materials.'],
-          actions: ['Validate the latest reporting figures.', 'Share the revised update with meeting participants.'],
-        },
-        {
-          title: 'Quarterly planning workshop',
-          focus: 'Strategic planning',
-          summary:
-            'Participants reviewed proposed quarterly initiatives, discussed team capacity, and identified dependencies that should be resolved before commitments are finalised.',
-          decisions: ['Sequence initiatives according to confirmed team capacity.'],
-          actions: ['Map dependencies between proposed initiatives.', 'Return with a capacity-aligned draft plan.'],
-        },
-        {
-          title: 'Operations improvement review',
-          focus: 'Operational follow-up',
-          summary:
-            'The group examined process bottlenecks, prioritised the areas with the clearest operational impact, and agreed to review progress using a consistent set of measures.',
-          decisions: ['Track the selected improvement measures consistently.'],
-          actions: ['Document baseline measures.', 'Assign owners for the priority process improvements.'],
-        },
-        {
-          title: 'Project stakeholder briefing',
-          focus: 'Project alignment',
-          summary:
-            'Stakeholders reviewed current project progress, clarified outstanding questions, and agreed on a concise update cadence for upcoming milestones.',
-          decisions: ['Use a single shared milestone update for stakeholders.'],
-          actions: ['Confirm milestone owners and dates.', 'Share the next status update before the following checkpoint.'],
-        },
-      ]
   const upcomingMeetings = meetings.filter((meeting) => meeting.start + meeting.duration * 60_000 >= Date.now())
   const pastMeetings = meetings.filter((meeting) => meeting.start + meeting.duration * 60_000 < Date.now())
   const totalDecisions = meetings.reduce((sum, meeting) => sum + (meeting.decisions?.length || 0), 0)
@@ -109,13 +28,13 @@ export function MeetingsPage({ platform, meetings = [], integration = {}, projec
             <div className="mu">
               {integration[platform]
                 ? 'Connected • meetings automatically sync with calendar invitations and links.'
-                : `Quick-start mode • launch instant ${label} or schedule with reminders.`}
+                : `${label} is not connected. Meeting details are saved here, but live meeting links are unavailable.`}
             </div>
           </div>
         </div>
         <div className="row">
           <Button className="btn-instant" onClick={() => onStart(platform)} primary type="button">
-            <Icon name="video-instant" size={16} /> Start instant meeting
+            <Icon name="video-instant" size={16} /> {integration[platform] ? 'Start instant meeting' : 'Create meeting record'}
           </Button>
           <Button onClick={onSchedule} type="button">
             <Icon name="calendar-plus" size={16} /> Schedule {label}
@@ -162,7 +81,7 @@ export function MeetingsPage({ platform, meetings = [], integration = {}, projec
             </span>
             <div>
               <h2 id="meeting-summaries-title">{label} meeting summaries</h2>
-              <p className="meeting-summary-description">Review saved minutes or browse examples of clear meeting summaries.</p>
+              <p className="meeting-summary-description">Review summaries saved from your meetings.</p>
             </div>
           </div>
           <span className="pill">{summarizedMeetings.length} saved</span>
@@ -208,7 +127,7 @@ export function MeetingsPage({ platform, meetings = [], integration = {}, projec
             </span>
             <div>
               <b>No saved summaries yet</b>
-              <p>The example cards below are for guidance only and are not meeting records.</p>
+              <p>Summaries saved from your meetings will appear here.</p>
             </div>
             {editableMeeting && (
               <Button onClick={() => onOpen(editableMeeting)}>
@@ -217,49 +136,6 @@ export function MeetingsPage({ platform, meetings = [], integration = {}, projec
             )}
           </div>
         )}
-        <div className="meeting-summary-examples-heading">
-          <div>
-            <h3>Example summaries</h3>
-            <p>Illustrative content · not saved meeting data</p>
-          </div>
-          <span>{exampleSummaries.length} examples</span>
-        </div>
-        <div aria-label="Illustrative meeting summary examples" className="meeting-summary-list">
-          {exampleSummaries.map((example) => (
-            <article className="meeting-summary-item meeting-summary-example" key={example.title}>
-              <div className="meeting-summary-item-heading">
-                <span className="meeting-summary-item-title">{example.title}</span>
-                <span className="meeting-summary-example-badge">Example</span>
-              </div>
-              <span className="meeting-summary-example-focus">
-                <Icon name="folder" size={13} /> {example.focus}
-              </span>
-              <p className="meeting-summary-text">{example.summary}</p>
-              <div className="meeting-summary-example-details">
-                <div>
-                  <b>
-                    <Icon name="decision" size={13} /> Decisions
-                  </b>
-                  <ul>
-                    {example.decisions.map((decision) => (
-                      <li key={decision}>{decision}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <b>
-                    <Icon name="check-square" size={13} /> Action items
-                  </b>
-                  <ul>
-                    {example.actions.map((action) => (
-                      <li key={action}>{action}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
       </section>
 
       <section className="card sp">
@@ -306,4 +182,3 @@ export function MeetingsPage({ platform, meetings = [], integration = {}, projec
     </>
   )
 }
-

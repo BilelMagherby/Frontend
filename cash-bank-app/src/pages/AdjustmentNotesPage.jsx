@@ -216,10 +216,10 @@ export default function AdjustmentNotesPage({ kind }) {
     try {
       if (editingId) {
         await updateAdjustmentDraft(editingId, form);
-        setMessage(t("Draft updated and saved to this browser.", "تم تحديث المسودة وحفظها في هذا المتصفح."));
+        setMessage(t("Draft updated and saved to the shared backend.", "تم تحديث المسودة وحفظها في الخادم المشترك."));
       } else {
         await createAdjustment(kind, form);
-        setMessage(t("Draft saved to this browser.", "تم حفظ المسودة في هذا المتصفح."));
+        setMessage(t("Draft saved to the shared backend.", "تم حفظ المسودة في الخادم المشترك."));
       }
       setFormOpen(false);
       setEditingId("");
@@ -326,7 +326,7 @@ export default function AdjustmentNotesPage({ kind }) {
     <Card className="p-5">
       <SectionTitle
         title={title}
-        subtitle={t("Financial adjustments · Local browser records only", "التعديلات المالية · سجلات محلية في المتصفح فقط")}
+        subtitle={t("Financial adjustments · Shared backend records", "التعديلات المالية · سجلات الخادم المشترك")}
         action={<div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={downloadTemplate}><Download size={15} />{t("CSV template", "نموذج CSV")}</Button>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><FileUp size={15} />{t("Import CSV", "استيراد CSV")}<input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleImportFile} /></label>
@@ -334,7 +334,7 @@ export default function AdjustmentNotesPage({ kind }) {
         </div>}
       />
       <div role="note" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-        {t("Local demonstration only: these browser records are not a secure accounting ledger. Approval actions are not authenticated, and no server, bank, or ZATCA transaction is performed.", "للعرض المحلي فقط: هذه السجلات ليست دفترًا محاسبيًا آمنًا. إجراءات الاعتماد غير موثقة بهوية، ولا يتم تنفيذ أي معاملة مع خادم أو بنك أو هيئة الزكاة والضريبة والجمارك.")}
+        {t("Records and approval actions are saved to the authenticated backend with the signed-in user recorded. This workflow does not submit transactions to a bank or ZATCA.", "تُحفظ السجلات وإجراءات الاعتماد في الخادم الموثق مع تسجيل المستخدم. لا يرسل سير العمل معاملات إلى البنك أو هيئة الزكاة والضريبة والجمارك.")}
       </div>
       {(accountingStorageError || documentStorageError || error || message) && <div role={error || accountingStorageError || documentStorageError ? "alert" : "status"} className={`mb-4 rounded-lg p-3 text-sm ${error || accountingStorageError || documentStorageError ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{accountingStorageError || documentStorageError || error || message}</div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -452,7 +452,7 @@ export default function AdjustmentNotesPage({ kind }) {
     </Card>
 
     <Card className="p-5">
-      <SectionTitle title={t("Audit trail", "سجل التدقيق")} subtitle={t("Local browser history; actor identity is not authenticated.", "سجل محلي في المتصفح؛ لم يتم التحقق من هوية المستخدم.")} action={<History size={17} className="text-slate-400" />} />
+      <SectionTitle title={t("Audit trail", "سجل التدقيق")} subtitle={t("Shared backend history with the authenticated actor recorded.", "سجل الخادم المشترك مع تسجيل المستخدم الموثق.")} action={<History size={17} className="text-slate-400" />} />
       <div className="max-h-64 overflow-auto">
         {accountingAudit.filter((entry) => entry.documentId?.startsWith(kind === "credit" ? "CN-" : "DN-")).slice().reverse().map((entry, index) => <div key={`${entry.documentId}-${entry.at}-${index}`} className="grid gap-1 border-b border-slate-100 py-2 text-xs sm:grid-cols-[180px_160px_1fr_180px]"><span>{entry.at}</span><b>{entry.documentNumber}</b><span>{entry.action}{entry.reason ? ` · ${entry.reason}` : ""}</span><span>{entry.actor}</span></div>)}
         {accountingAudit.filter((entry) => entry.documentId?.startsWith(kind === "credit" ? "CN-" : "DN-")).length === 0 && <p className="py-6 text-center text-sm text-slate-400">{t("No audit events yet.", "لا توجد أحداث تدقيق بعد.")}</p>}

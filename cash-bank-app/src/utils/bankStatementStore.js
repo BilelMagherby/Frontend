@@ -1,46 +1,53 @@
-const DATABASE = "natheel-bank-statements";
-const VERSION = 1;
-const STORE = "statements";
+import { api } from "../../../src/services/api.js";
 
-function openDatabase() {
-  if (!globalThis.indexedDB) return Promise.reject(new Error("This browser does not support local IndexedDB storage."));
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, VERSION);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "id" });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to open local statement storage."));
-    request.onblocked = () => reject(new Error("Statement storage is blocked by another browser tab. Close other tabs and retry."));
-  });
-}
-
-async function requestStore(mode, callback) {
-  const database = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE, mode);
-    const request = callback(transaction.objectStore(STORE));
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to access locally stored statements."));
-    transaction.onabort = () => reject(transaction.error ?? new Error("The statement storage operation was aborted."));
-    transaction.oncomplete = () => database.close();
-  });
-}
+const COLLECTION = "cashbankStatements";
 
 export async function listStatements() {
-  const statements = await requestStore("readonly", (store) => store.getAll());
-  return statements.sort((first, second) => second.importedAt.localeCompare(first.importedAt));
+  const rows = await api.list(COLLECTION);
+  return rows
+    .map(({ id, data }) => ({ ...data, id }))
+    .sort((first, second) => second.importedAt.localeCompare(first.importedAt));
 }
 
-export function saveStatement(statement) {
-  return requestStore("readwrite", (store) => store.put(statement));
+export async function saveStatement(statement) {
+  const data = { ...statement };
+  let uploadedFileId = "";
+  if (data.fileBlob instanceof Blob) {
+    const file = new File([data.fileBlob], data.fileName || "bank-statement", {
+      type: data.fileType || data.fileBlob.type || "application/octet-stream",
+    });
+    const uploaded = await api.uploadFile(file, "cashbank");
+    data.fileId = uploaded.id;
+    uploadedFileId = uploaded.id;
+  }
+  delete data.fileBlob;
+
+  try {
+    await api.put(`${COLLECTION}/${data.id}`, data);
+  } catch (error) {
+    if (uploadedFileId) {
+      try {
+        await api.deleteFile(uploadedFileId);
+      } catch (cleanupError) {
+        throw new Error(`${error.message} The uploaded original file could not be cleaned up: ${cleanupError.message}`);
+      }
+    }
+    throw error;
+  }
+  return data;
 }
 
-export function deleteStatement(id) {
-  return requestStore("readwrite", (store) => store.delete(id));
+export async function deleteStatement(id) {
+  const result = await api.get(`${COLLECTION}/${id}`);
+  if (!result.exists) return;
+  await api.remove(`${COLLECTION}/${id}`);
+  if (result.data.fileId) await api.deleteFile(result.data.fileId);
 }
 
-export function downloadOriginal(statement) {
-  if (!statement.fileBlob) throw new Error("The original workbook was not stored for this import.");
-  const url = URL.createObjectURL(statement.fileBlob);
+export async function downloadOriginal(statement) {
+  if (!statement.fileId) throw new Error("No original workbook is stored for this import.");
+  const blob = await api.downloadFile(statement.fileId);
+  const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = statement.fileName;

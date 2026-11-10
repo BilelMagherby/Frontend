@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { Button } from '../../components/ui/Button.jsx'
+import { request } from '../../services/api.js'
 
-export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast }) {
+export function EmailClientPage({ contacts = [], onSaveContacts, onToast }) {
   const [activeTab, setActiveTab] = useState('compose')
-  const [contacts, setContacts] = useState([])
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [to, setTo] = useState('')
@@ -13,13 +13,14 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [footer, setFooter] = useState('')
-  const [oneEmail, setOneEmail] = useState(true)
-  const [selectedDataBank, setSelectedDataBank] = useState([])
-  const [deviceFiles, setDeviceFiles] = useState([])
-  const [showDataBank, setShowDataBank] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
-  const deviceInput = useRef(null)
-  const sender = config.emails?.['Asma Ghidhaoui'] || 'asma.g@natheelco.com'
+  const [mailStatus, setMailStatus] = useState({ connected: false, email: '' })
+  const [senders, setSenders] = useState({ senders: [], defaultEmail: '' })
+  const [mailError, setMailError] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sentMessages, setSentMessages] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const sender = senders.defaultEmail
 
   const parseAddresses = (value) =>
     value
@@ -34,45 +35,104 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
     [...parseAddresses(to), ...parseAddresses(cc), ...parseAddresses(bcc)].map((email) => email.toLowerCase())
   ).size
 
-  const dataBankSize = selectedDataBank.reduce((total, assetId) => {
-    const asset = assets.find((item) => item.id === assetId)
-    if (!asset) return total
-    const match = asset.size.match(/^([\d.]+)\s*(KB|MB)$/i)
-    if (!match) return total
-    return total + Number(match[1]) * (match[2].toUpperCase() === 'MB' ? 1 : 1 / 1024)
-  }, 0)
-
-  const deviceSize = deviceFiles.reduce((total, file) => total + file.size / (1024 * 1024), 0)
-  const totalAttachmentSize = dataBankSize + deviceSize
-  const formatAttachmentSize = (size) => (size < 1 ? `${(size * 1024).toFixed(1)} KB` : `${size.toFixed(1)} MB`)
-
-  const updateDeviceFiles = (fileList) => {
-    const nextFiles = [...deviceFiles, ...fileList]
-    const nextSize = nextFiles.reduce((total, file) => total + file.size / (1024 * 1024), dataBankSize)
-    if (nextSize > 18) {
-      onToast('Attachments must be 18 MB or less in total.')
-      return
+  useEffect(() => {
+    let active = true
+    const loadMailAccount = async () => {
+      let status
+      try {
+        status = await request('/api/mails/status')
+      } catch (error) {
+        if (active) setMailError(error.message)
+        return
+      }
+      if (!active) return
+      setMailStatus(status)
+      if (!status.connected) {
+        setSenders({ senders: [], defaultEmail: '' })
+        return
+      }
+      try {
+        const sendAs = await request('/api/mails/senders')
+        if (active) setSenders(sendAs)
+      } catch (error) {
+        if (active) setMailError(error.message)
+      }
     }
-    setDeviceFiles(nextFiles)
+    loadMailAccount()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'history' || !mailStatus.connected) return undefined
+    let active = true
+    setHistoryLoading(true)
+    request('/api/mails/messages?label=SENT&maxResults=20')
+      .then(({ messages: sent }) => {
+        if (active) setSentMessages(sent)
+      })
+      .catch((error) => {
+        if (active) setMailError(error.message)
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [activeTab, mailStatus.connected])
+
+  const connectGmail = async () => {
+    setMailError('')
+    try {
+      const { url } = await request('/api/mails/auth/google')
+      window.location.assign(url)
+    } catch (error) {
+      setMailError(error.message)
+    }
   }
 
-  const openDraft = (test = false) => {
-    const recipients = test ? sender : parseAddresses(to).join(',')
-    if (!recipients) {
-      onToast('Add at least one To address before continuing.')
+  const sendMessage = async (test = false) => {
+    const recipients = test ? [mailStatus.email] : parseAddresses(to)
+    if (!recipients.filter(Boolean).length) {
+      setMailError(test ? 'Connect a Gmail account before sending a test.' : 'Add at least one To address before sending.')
       return
     }
-    const body = [message, footer && `\n\n${footer}`].filter(Boolean).join('')
-    const params = new URLSearchParams()
-    if (cc.trim()) params.set('cc', cc)
-    if (bcc.trim()) params.set('bcc', bcc)
-    if (subject || test) params.set('subject', `${test ? '[Test] ' : ''}${subject}`)
-    if (body) params.set('body', body)
-    window.location.href = `mailto:${encodeURIComponent(recipients)}?${params.toString()}`
-    onToast('Email draft opened in your mail app. Add the selected attachments there before sending.')
+    setMailError('')
+    setSending(true)
+    try {
+      await request('/api/mails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: sender,
+          to: recipients,
+          cc: test ? [] : parseAddresses(cc),
+          bcc: test ? [] : parseAddresses(bcc),
+          subject: `${test ? '[Test] ' : ''}${subject}`,
+          body: [message, footer && `\n\n${footer}`].filter(Boolean).join(''),
+        }),
+      })
+      if (!test) {
+        setTo('')
+        setCc('')
+        setBcc('')
+        setSubject('')
+        setMessage('')
+        setFooter('')
+      }
+      setReviewOpen(false)
+      setActiveTab('history')
+      onToast('Message sent through Gmail.')
+    } catch (error) {
+      setMailError(error.message)
+    } finally {
+      setSending(false)
+    }
   }
 
-  const addContact = (event) => {
+  const addContact = async (event) => {
     event.preventDefault()
     const email = contactEmail.trim()
     if (!contactName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -83,10 +143,14 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
       onToast('That contact is already saved.')
       return
     }
-    setContacts((current) => [...current, { name: contactName.trim(), email }])
-    setContactName('')
-    setContactEmail('')
-    onToast('Contact saved for this session.')
+    try {
+      await onSaveContacts([...contacts, { name: contactName.trim(), email }])
+      setContactName('')
+      setContactEmail('')
+      onToast('Contact saved.')
+    } catch (error) {
+      onToast(`Could not save contact: ${error.message}`)
+    }
   }
 
   const addContactToRecipients = (contact) => {
@@ -105,7 +169,7 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
           </span>
           <h1 id="gulf-email-title">Email Client</h1>
           <p>
-            Write it like a Gmail message, with To, Cc, Bcc, a subject and any attachments. Send one email to everyone, or a separate copy to each person.
+            Compose messages with your connected Gmail account. Sent messages and history come directly from Gmail.
           </p>
         </div>
       </header>
@@ -117,7 +181,7 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
             </span>
             <div>
               <small>Sending from</small>
-              <b>{sender}</b>
+              <b>{mailStatus.connected ? sender || mailStatus.email : 'Gmail not connected'}</b>
             </div>
           </div>
           <nav aria-label="Email client sections" className="gulf-email-tabs">
@@ -150,19 +214,26 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
         <div className="gulf-email-content">
           {activeTab === 'compose' && (
             <div className="gulf-email-compose">
+              {mailError && <p className="gulf-email-preview-note" role="alert">{mailError}</p>}
+              {!mailStatus.connected && (
+                <div className="gulf-email-preview-note">
+                  <Icon name="info" size={14} /> Connect Gmail to send messages. This account needs Mails permission.
+                  <Button onClick={connectGmail}>Connect Gmail</Button>
+                </div>
+              )}
               <div className="gulf-email-compose-heading">
                 <div>
                   <h2>New message</h2>
-                  <p>Compose and review your email before sending.</p>
+                  <p>Messages are sent through Gmail and visible in Sent mail.</p>
                 </div>
                 <span className="gulf-email-badge">
-                  <Icon name="mail" size={14} /> Gmail-style compose
+                  <Icon name="mail" size={14} /> Gmail
                 </span>
               </div>
               <label className="gulf-email-field">
                 <span>To</span>
                 <textarea onChange={(event) => setTo(event.target.value)} placeholder="type or paste addresses" rows={2} value={to} />
-                <small>Separate with commas, semicolons or new lines. You can also write Name &lt;email&gt;. One address or hundreds.</small>
+                <small>Separate addresses with commas, semicolons or new lines. You can also write Name &lt;email&gt;.</small>
               </label>
               <div className="gulf-email-recipient-row">
                 <label className="gulf-email-field">
@@ -178,12 +249,6 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
                   <textarea onChange={(event) => setBcc(event.target.value)} placeholder="Add blind carbon copy recipients" rows={2} value={bcc} />
                 </label>
               </div>
-              <label className="gulf-email-one-copy">
-                <input checked={oneEmail} onChange={(event) => setOneEmail(event.target.checked)} type="checkbox" />
-                <span>
-                  <b>Send as one email to everyone in To</b> (they all see each other, like a normal Gmail message). Leave this off to send each person their own separate email.
-                </span>
-              </label>
               <div aria-live="polite" className="gulf-email-recipient-count">
                 <b>{recipientCount}</b> {recipientCount === 1 ? 'recipient' : 'recipients'}
               </div>
@@ -196,11 +261,10 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
                 <textarea
                   className="gulf-email-message"
                   onChange={(event) => setMessage(event.target.value)}
-                  placeholder={'Write your message here. Use {{name}} to insert each person’s name (or “there” if we have no name).'}
+                  placeholder="Write your message here."
                   rows={8}
                   value={message}
                 />
-                <small>Write {'{{name}}'} to insert each person's name (or "there" if we have no name).</small>
               </label>
               <label className="gulf-email-field">
                 <span>
@@ -208,124 +272,16 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
                 </span>
                 <textarea onChange={(event) => setFooter(event.target.value)} placeholder="Your signature or footer" rows={2} value={footer} />
               </label>
-              <section className="gulf-email-attachments">
-                <div className="gulf-email-attachments-heading">
-                  <div>
-                    <h3>
-                      <Icon name="paperclip" size={16} /> Attachments
-                    </h3>
-                    <p>Any file type: PDF, video, images, Word, Excel, zip</p>
-                  </div>
-                  <b>
-                    {formatAttachmentSize(totalAttachmentSize)} / 18.0 MB
-                  </b>
-                </div>
-                <div className="gulf-email-attachment-actions">
-                  <Button onClick={() => setShowDataBank((current) => !current)}>
-                    <Icon name="folder" size={15} /> Add from the Data Bank
-                  </Button>
-                  <Button onClick={() => deviceInput.current?.click()}>
-                    <Icon name="upload" size={15} /> Add from this device
-                  </Button>
-                  <input
-                    aria-label="Add attachments from this device"
-                    className="gulf-upload-input"
-                    multiple
-                    onChange={(event) => {
-                      updateDeviceFiles(event.target.files || [])
-                      event.target.value = ''
-                    }}
-                    ref={deviceInput}
-                    type="file"
-                  />
-                </div>
-                {showDataBank && (
-                  <div className="gulf-email-databank">
-                    <b>Select Data Bank files</b>
-                    {assets.map((asset) => {
-                      const project = nodes.find((node) => node.id === asset.node)?.name || 'Unfiled files'
-                      return (
-                        <label key={asset.id}>
-                          <input
-                            checked={selectedDataBank.includes(asset.id)}
-                            onChange={(event) => {
-                              const next = event.target.checked
-                                ? [...selectedDataBank, asset.id]
-                                : selectedDataBank.filter((id) => id !== asset.id)
-                              const nextSize = next.reduce((sum, id) => {
-                                const record = assets.find((item) => item.id === id)
-                                const match = record?.size.match(/^([\d.]+)\s*(KB|MB)$/i)
-                                return sum + (match ? Number(match[1]) * (match[2].toUpperCase() === 'MB' ? 1 : 1 / 1024) : 0)
-                              }, deviceSize)
-                              if (nextSize > 18) {
-                                onToast('Attachments must be 18 MB or less in total.')
-                                return
-                              }
-                              setSelectedDataBank(next)
-                            }}
-                            type="checkbox"
-                          />
-                          <span>
-                            <b>{asset.name}</b>
-                            <small>
-                              {project} · {asset.size}
-                            </small>
-                          </span>
-                        </label>
-                      )
-                    })}
-                    {!assets.length && <p>No Data Bank files are available.</p>}
-                  </div>
-                )}
-                {(selectedDataBank.length > 0 || deviceFiles.length > 0) && (
-                  <ul className="gulf-email-attachment-list">
-                    {selectedDataBank.map((id) => {
-                      const asset = assets.find((item) => item.id === id)
-                      return asset ? (
-                        <li key={id}>
-                          <Icon name="file-text" size={16} />
-                          <span>{asset.name}</span>
-                          <b>{asset.size}</b>
-                          <button
-                            aria-label={`Remove ${asset.name}`}
-                            onClick={() => setSelectedDataBank((current) => current.filter((item) => item !== id))}
-                            type="button"
-                          >
-                            <Icon name="close" size={14} />
-                          </button>
-                        </li>
-                      ) : null
-                    })}
-                    {deviceFiles.map((file, index) => (
-                      <li key={`${file.name}-${file.lastModified}-${index}`}>
-                        <Icon name="file-text" size={16} />
-                        <span>{file.name}</span>
-                        <b>{formatAttachmentSize(file.size / (1024 * 1024))}</b>
-                        <button
-                          aria-label={`Remove ${file.name}`}
-                          onClick={() => setDeviceFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                          type="button"
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="gulf-email-limit">
-                  Limit 18.0 MB in total (Gmail allows about 25 MB per email). For larger files such as long videos, share a Drive link in the message instead.
-                </p>
-              </section>
               <div className="gulf-email-send-actions">
-                <Button disabled={!recipientCount} onClick={() => openDraft(true)}>
-                  <Icon name="send" size={15} /> Send a test first <span>Send test</span>
+                <Button disabled={!mailStatus.connected || !sender || !message.trim() || sending} onClick={() => sendMessage(true)}>
+                  <Icon name="send" size={15} /> Send a test
                 </Button>
-                <Button className="p" disabled={!recipientCount} onClick={() => setReviewOpen(true)}>
+                <Button className="p" disabled={!mailStatus.connected || !sender || !parseAddresses(to).length || !message.trim() || sending} onClick={() => setReviewOpen(true)}>
                   Review and send <Icon name="arrow-right" size={15} />
                 </Button>
               </div>
               <p className="gulf-email-preview-note">
-                <Icon name="info" size={14} /> Email delivery is not connected in this preview. Review opens one draft in your default mail app; send separate copies and add selected attachments there manually.
+                <Icon name="info" size={14} /> Attachments aren’t supported in this compose view. Use the Mails page to access your connected mailbox.
               </p>
             </div>
           )}
@@ -378,10 +334,32 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
             </div>
           )}
           {activeTab === 'history' && (
-            <div className="gulf-email-empty gulf-email-history">
-              <Icon name="clock" size={25} />
-              <h2>History</h2>
-              <p>Email drafts opened from this preview are handled by your mail app and aren’t recorded here.</p>
+            <div className="gulf-email-compose gulf-email-history">
+              <div className="gulf-email-compose-heading">
+                <div>
+                  <h2>Sent mail history</h2>
+                  <p>Recent sent messages loaded from the connected Gmail account.</p>
+                </div>
+              </div>
+              {!mailStatus.connected ? (
+                <div className="gulf-email-empty"><Icon name="mail" size={24} /><b>Connect Gmail to view sent messages.</b></div>
+              ) : historyLoading ? (
+                <div className="gulf-email-empty">Loading sent messages…</div>
+              ) : sentMessages.length ? (
+                <ul className="gulf-email-contact-list">
+                  {sentMessages.map((sentMessage) => (
+                    <li key={sentMessage.id}>
+                      <span>
+                        <b>{sentMessage.subject || '(no subject)'}</b>
+                        <small>{sentMessage.to || sentMessage.from || 'Sent message'}</small>
+                      </span>
+                      <small>{sentMessage.date ? new Date(sentMessage.date).toLocaleString() : ''}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="gulf-email-empty"><Icon name="clock" size={24} /><b>No sent messages were found.</b></div>
+              )}
             </div>
           )}
         </div>
@@ -422,10 +400,6 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
               <dd>{subject || '(no subject)'}</dd>
               <dt>Recipients</dt>
               <dd>{recipientCount}</dd>
-              <dt>Attachments</dt>
-              <dd>
-                {selectedDataBank.length + deviceFiles.length} · {formatAttachmentSize(totalAttachmentSize)}
-              </dd>
             </dl>
             <div className="gulf-email-review-message">
               {message || 'No message content.'}
@@ -435,12 +409,10 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
               <Button onClick={() => setReviewOpen(false)}>Back to compose</Button>
               <Button
                 className="p"
-                onClick={() => {
-                  setReviewOpen(false)
-                  openDraft()
-                }}
+                disabled={sending}
+                onClick={() => sendMessage()}
               >
-                <Icon name="send" size={15} /> Open email draft
+                <Icon name="send" size={15} /> {sending ? 'Sending…' : 'Send email'}
               </Button>
             </footer>
           </section>
@@ -449,4 +421,3 @@ export function EmailClientPage({ assets = [], nodes = [], config = {}, onToast 
     </section>
   )
 }
-

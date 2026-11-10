@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { formatDate, formatBytes, dueStatus } from '../../utils/helpers.js'
-import { openFoodicsDatabase, runTransaction, requestResult } from '../../services/foodicsStorage.js'
 import { api } from '../../services/api.js'
 import {
   FOODICS_SECTIONS,
@@ -10,7 +9,6 @@ import {
   OVERVIEW_SECTION,
   REPORT_TYPES,
   PROCEDURES,
-  ACCOUNTS,
 } from './foodicsData.js'
 import { FoodicsEntryDialog } from './FoodicsEntryDialog.jsx'
 import '../../foodics.css'
@@ -34,69 +32,18 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
 
   useEffect(() => {
     let mounted = true
-    async function load() {
+    const load = async () => {
       try {
-        const database = await openFoodicsDatabase()
         const [remoteRows, ...workflowRows] = await Promise.all([
           api.list('foodics'),
           ...FOODICS_PROJECTS.map((item) => api.get(`foodics-settings/${item.id}`)),
         ])
-        const localRecords = await requestResult(
-          database.transaction('records', 'readonly').objectStore('records').getAll()
-        )
-        const legacyWorkflow = await requestResult(
-          database.transaction('settings', 'readonly').objectStore('settings').get('workflow')
-        )
-        const legacyWorkflows = await Promise.all(
-          FOODICS_PROJECTS.map((item) =>
-            requestResult(database.transaction('settings', 'readonly').objectStore('settings').get(`workflow:${item.id}`))
-          )
-        )
-        const remoteIds = new Set(remoteRows.map((row) => row.id))
-        const migratedRecords = []
-        for (const localRecord of localRecords) {
-          if (remoteIds.has(localRecord.id)) continue
-          const record = localRecord.section !== 'reports' && !localRecord.projectId
-            ? { ...localRecord, projectId: FOODICS_PROJECTS[0].id }
-            : { ...localRecord }
-          if (record.fileId) {
-            const savedFile = await requestResult(
-              database.transaction('files', 'readonly').objectStore('files').get(record.fileId)
-            )
-            if (savedFile?.blob) {
-              const uploaded = await api.uploadFile(
-                new File([savedFile.blob], record.fileName || 'foodics-document', {
-                  type: savedFile.blob.type || 'application/octet-stream',
-                }),
-                'foodics'
-              )
-              record.fileId = uploaded.id
-            } else {
-              record.fileId = ''
-            }
-          }
-          await api.put(`foodics/${record.id}`, record)
-          migratedRecords.push(record)
-        }
-        const records = [
-          ...remoteRows.map((row) => ({ ...row.data, id: row.id })),
-          ...migratedRecords,
-        ].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+        const records = remoteRows
+          .map((row) => ({ ...row.data, id: row.id }))
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         const workflow = Object.fromEntries(
-          FOODICS_PROJECTS.map((item, index) => {
-            const value =
-              workflowRows[index]?.data?.value ||
-              legacyWorkflows[index]?.value ||
-              (item.id === FOODICS_PROJECTS[0].id ? legacyWorkflow?.value : null) ||
-              {}
-            return [item.id, value]
-          })
+          FOODICS_PROJECTS.map((item, index) => [item.id, workflowRows[index]?.data?.value || {}])
         )
-        for (const item of FOODICS_PROJECTS) {
-          if (!workflowRows[FOODICS_PROJECTS.indexOf(item)]?.exists && Object.keys(workflow[item]).length) {
-            await api.put(`foodics-settings/${item.id}`, { value: workflow[item] })
-          }
-        }
         if (mounted) {
           setRecords(records)
           setWorkflow(workflow)
@@ -108,8 +55,12 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
       }
     }
     load()
+    const poll = window.setInterval(() => {
+      if (!document.hidden) load()
+    }, 15000)
     return () => {
       mounted = false
+      window.clearInterval(poll)
     }
   }, [])
 
@@ -145,11 +96,31 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
 
   async function saveRecord(record, file) {
     const scopedRecord = { ...(section.id === 'reports' ? record : { ...record, projectId: activeProject }) }
+    if (
+      section.id === 'accounts' &&
+      records.some((item) => item.section === 'accounts' && item.projectId === activeProject &&
+        String(item.reference || '').trim().toLowerCase() === scopedRecord.reference.trim().toLowerCase())
+    ) {
+      throw new Error('An account with this code already exists in this project.')
+    }
+    let uploadedFileId = ''
     if (file) {
       const uploaded = await api.uploadFile(file, 'foodics')
       scopedRecord.fileId = uploaded.id
+      uploadedFileId = uploaded.id
     }
-    await api.put(`foodics/${scopedRecord.id}`, scopedRecord)
+    try {
+      await api.put(`foodics/${scopedRecord.id}`, scopedRecord)
+    } catch (error) {
+      if (uploadedFileId) {
+        try {
+          await api.deleteFile(uploadedFileId)
+        } catch (cleanupError) {
+          throw new Error(`${error.message} The uploaded file could not be cleaned up: ${cleanupError.message}`)
+        }
+      }
+      throw error
+    }
     setRecords((current) => [scopedRecord, ...current])
     setNotice('Record saved to the shared Foodics library.')
     window.setTimeout(() => setNotice(''), 4000)
@@ -158,8 +129,8 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
   async function removeRecord(record) {
     if (!window.confirm(`Permanently remove “${record.title}”${record.fileName ? ' and its saved file' : ''}?`)) return
     try {
-      if (record.fileId) await api.deleteFile(record.fileId)
       await api.remove(`foodics/${record.id}`)
+      if (record.fileId) await api.deleteFile(record.fileId)
       setRecords((current) => current.filter((item) => item.id !== record.id))
       setNotice('Record removed.')
     } catch (cause) {
@@ -456,9 +427,9 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
             <Icon name="chevron-left" size={15} /> All projects
           </button>
         )}
-        {section.id !== 'overview' && section.id !== 'accounts' && section.id !== 'procedures' && (
+        {section.id !== 'overview' && section.id !== 'procedures' && (
           <button className="foodics-button primary" onClick={() => setDialogOpen(true)} type="button">
-            <Icon name="plus" size={16} /> {section.id === 'vat' ? 'Add reminder' : 'Add record'}
+            <Icon name="plus" size={16} /> {section.id === 'vat' ? 'Add reminder' : section.id === 'accounts' ? 'Add account' : 'Add record'}
           </button>
         )}
       </header>
@@ -495,9 +466,7 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
                 const countLabel =
                   item.id === 'procedures'
                     ? `${PROCEDURES.length} checklists`
-                    : item.id === 'accounts'
-                      ? `${ACCOUNTS.length} accounts`
-                      : `${count} ${count === 1 ? 'record' : 'records'}`
+                    : `${count} ${count === 1 ? 'record' : 'records'}`
                 return (
                   <button
                     className="foodics-workspace-card"
@@ -540,86 +509,56 @@ export function FoodicsManagementPage({ activeSection, activeProject, onSelectPr
               })}
         </div>
       ) : section.id === 'accounts' ? (
-        <>
-          <div className="foodics-account-notice">
-            <Icon name="alert-circle" size={17} />
+        <div className="foodics-panel">
+          <div className="foodics-panel-header">
             <div>
-              <strong>Reference structure only</strong>
-              <p>These example account groupings are not your approved ledger or a tax treatment decision. Confirm account codes, mappings, and VAT treatment with your accountant before use.</p>
+              <h2>Foodics-to-ledger mappings</h2>
+              <p>Only account codes and mappings entered by your team are shown.</p>
             </div>
+            <label className="foodics-search">
+              <Icon name="search" size={15} />
+              <input
+                aria-label="Search chart of accounts"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search accounts"
+                ref={searchInput}
+                value={search}
+              />
+              {search && (
+                <button aria-label="Clear search" onClick={() => setSearch('')} type="button">
+                  <Icon name="close" size={13} />
+                </button>
+              )}
+            </label>
           </div>
-          <div className="foodics-summary-grid">
-            <div className="foodics-summary-card">
-              <span>Reference accounts</span>
-              <strong>{ACCOUNTS.length}</strong>
-              <small>Illustrative starting point</small>
-            </div>
-            <div className="foodics-summary-card">
-              <span>Account groups</span>
-              <strong>4</strong>
-              <small>Asset · liability · equity · P&amp;L</small>
-            </div>
-            <div className="foodics-summary-card">
-              <span>Mapping status</span>
-              <strong className="foodics-summary-review">Review required</strong>
-              <small>Confirm with finance before posting</small>
-            </div>
-          </div>
-          <div className="foodics-panel">
-            <div className="foodics-panel-header">
-              <div>
-                <h2>Foodics-to-ledger reference</h2>
-                <p>Use your signed-off accounting policy as the source of truth.</p>
-              </div>
-              <label className="foodics-search">
-                <Icon name="search" size={15} />
-                <input
-                  aria-label="Search chart of accounts"
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search accounts"
-                  ref={searchInput}
-                  value={search}
-                />
-                {search && (
-                  <button aria-label="Clear search" onClick={() => setSearch('')} type="button">
-                    <Icon name="close" size={13} />
-                  </button>
-                )}
-              </label>
-            </div>
-            <div className="foodics-table-scroll">
-              <table className="foodics-table">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Account</th>
-                    <th>Type</th>
-                    <th>Purpose / mapping note</th>
+          <div className="foodics-table-scroll">
+            <table className="foodics-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Account</th>
+                  <th>Type</th>
+                  <th>Mapping note</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td className="foodics-account-code">{record.reference}</td>
+                    <td><strong>{record.title}</strong></td>
+                    <td>{record.category}</td>
+                    <td>{record.notes}</td>
+                    <td><button className="font-semibold text-rose-600 hover:underline" onClick={() => removeRecord(record)} type="button">Remove</button></td>
                   </tr>
-                </thead>
-                <tbody>
-                  {ACCOUNTS.filter((account) => !search || account.join(' ').toLowerCase().includes(search.toLowerCase())).map(
-                    ([code, name, type, note]) => (
-                      <tr key={code}>
-                        <td className="foodics-account-code">{code}</td>
-                        <td>
-                          <strong>{name}</strong>
-                        </td>
-                        <td>
-                          <span className={`foodics-account-type ${type.toLowerCase()}`}>{type}</span>
-                        </td>
-                        <td>{note}</td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="foodics-panel-footer">
-              Illustrative account names and codes only · No actual ledger entries are stored here.
-            </div>
+                ))}
+                {!filteredRecords.length && (
+                  <tr><td className="py-8 text-center text-slate-400" colSpan="5">No account mappings have been added.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </>
+        </div>
       ) : section.id === 'procedures' ? (
         <>
           <div className="foodics-procedure-summary">

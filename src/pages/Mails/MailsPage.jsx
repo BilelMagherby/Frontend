@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
-import { request } from '../../services/api.js'
+import { api, request } from '../../services/api.js'
 import '../../mails.css'
 
 const SYSTEM_FOLDERS = [
@@ -52,8 +52,27 @@ export function MailsPage() {
   const [notice, setNotice] = useState('')
 
   const loadStatus = useCallback(async () => {
-    setStatus({ connected: false, email: '', lastSyncAt: '' })
-    setError('Gmail integration is unavailable in standalone mode; TaskFlow records are still saved in this browser.')
+    setError('')
+    try {
+      const currentStatus = await request('/api/mails/status')
+      setStatus(currentStatus)
+      if (currentStatus.connected) {
+        const [currentSenders, currentLabels] = await Promise.all([
+          request('/api/mails/senders'),
+          request('/api/mails/labels'),
+        ])
+        setSenders(currentSenders)
+        setLabels(currentLabels)
+      } else {
+        setSenders({ senders: [], defaultEmail: '', requestedEmail: '' })
+        setLabels([])
+      }
+    } catch (cause) {
+      setStatus({ connected: false, email: '', lastSyncAt: '' })
+      setSenders({ senders: [], defaultEmail: '', requestedEmail: '' })
+      setLabels([])
+      setError(cause.message)
+    }
     return
   }, [])
 
@@ -140,8 +159,29 @@ export function MailsPage() {
   }, [selected?.id, selected?.threadId])
 
   async function disconnect() {
-    setStatus({ connected: false, email: '', lastSyncAt: '' })
-    setError('Gmail integration is unavailable in standalone mode.')
+    setError('')
+    try {
+      await request('/api/mails/disconnect', { method: 'POST' })
+      setStatus({ connected: false, email: '', lastSyncAt: '' })
+      setSenders({ senders: [], defaultEmail: '', requestedEmail: '' })
+      setLabels([])
+      setMessages([])
+      setSelected(null)
+      setThread([])
+      setNotice('Gmail disconnected.')
+    } catch (cause) {
+      setError(cause.message)
+    }
+  }
+
+  async function connect() {
+    setError('')
+    try {
+      const { url } = await request('/api/mails/auth/google')
+      window.location.assign(url)
+    } catch (cause) {
+      setError(cause.message)
+    }
   }
 
   async function runAction(message, action) {
@@ -200,19 +240,9 @@ export function MailsPage() {
   async function downloadAttachment(message, attachment) {
     setError('')
     try {
-      const response = await fetch(
-        `/api/mails/messages/${encodeURIComponent(message.id)}/attachments/${encodeURIComponent(attachment.id)}?filename=${encodeURIComponent(attachment.filename)}`,
-        { cache: 'no-store' }
+      const blobUrl = URL.createObjectURL(
+        await api.downloadMailAttachment(message.id, attachment.id, attachment.filename)
       )
-      if (response.status === 401) {
-        window.dispatchEvent(new CustomEvent('taskflow:locked'))
-        throw new Error('Your session expired. Unlock the dashboard and try again.')
-      }
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({}))
-        throw new Error(result.error || `Download failed (${response.status}).`)
-      }
-      const blobUrl = URL.createObjectURL(await response.blob())
       const link = document.createElement('a')
       link.href = blobUrl
       link.download = attachment.filename
@@ -285,8 +315,11 @@ export function MailsPage() {
         <div className="mails-connect-card">
           <span className="mails-connect-icon"><Icon name="mail" size={26} /></span>
           <div>
-            <h2>Gmail is unavailable in standalone mode</h2>
-            <p>Connecting Gmail requires a server-side OAuth integration. Your TaskFlow records continue to work and stay in this browser.</p>
+            <h2>Connect your Gmail account</h2>
+            <p>Messages, sending, and synchronization use the connected account through the backend.</p>
+            <button className="mails-button mails-button-primary" onClick={connect} type="button">
+              <Icon name="mail" size={16} /> Connect with Google
+            </button>
           </div>
         </div>
       ) : (
@@ -436,7 +469,7 @@ export function MailsPage() {
                 </select>
               ) : (
                 <span className="mails-compose-sender-error">
-                  Add and verify {senders.requestedEmail || 'bilel.m@natheelco.com'} in Gmail Settings → Accounts → Send mail as.
+                  Add and verify {senders.requestedEmail || 'your Gmail address'} in Gmail Settings → Accounts → Send mail as.
                 </span>
               )}
             </label>

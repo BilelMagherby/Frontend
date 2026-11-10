@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { Button } from '../../components/ui/Button.jsx'
+import { request } from '../../services/api.js'
 
 const actionLabels = {
   'auth.login': 'Signed in',
@@ -25,9 +26,15 @@ export function ActivityLogPage() {
   const [error, setError] = useState('')
 
   const loadEvents = useCallback(async () => {
-    setEvents([])
-    setError('Activity history requires shared server-side audit storage and is unavailable in standalone mode.')
-    setLoading(false)
+    setLoading(true)
+    setError('')
+    try {
+      setEvents(await request('/api/audit?limit=200'))
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -41,7 +48,7 @@ export function ActivityLogPage() {
           <h1>
             <Icon name="database" size={23} /> Activity Log
           </h1>
-          <p className="mu">Activity history is not recorded in standalone mode.</p>
+          <p className="mu">Recent changes recorded by the backend.</p>
         </div>
         <Button disabled={loading} onClick={loadEvents}>
           <Icon name="sync" size={15} /> Refresh

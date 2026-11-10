@@ -117,15 +117,6 @@ export function AppLayout({
         />
 
         <main>
-          {auth.frontendOnly && (
-            <div className="card sp alert-banner" role="status">
-              <Icon name="alert-circle" size={16} />{' '}
-              <span>
-                Frontend-only preview: PINs and section permissions are stored in this browser and do not secure API or
-                dashboard data.
-              </span>
-            </div>
-          )}
           {error && (
             <div className="toast err react-toast" role="alert">
               <Icon name="alert-triangle" size={16} /> {error}
