@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { Button } from '../../components/ui/Button.jsx'
-import { api } from '../../services/api.js'
+import { api, request } from '../../services/api.js'
 
 const DAY = 86_400_000
 const dateKey = (value) => {
@@ -282,12 +282,7 @@ export function NoticesPage({ tasks, meetings, history, clickupStatus, canViewHR
       setAuditError('')
       return undefined
     }
-    fetch('/api/audit?limit=500', { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json()
-        if (!response.ok) throw new Error(body.error || `Could not load activity (${response.status}).`)
-        return body
-      })
+    request('/api/audit?limit=500')
       .then((events) => {
         if (active) setAuditEvents(events)
       })

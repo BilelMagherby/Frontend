@@ -3,8 +3,13 @@ const DATABASE_VERSION = 1
 const DOCUMENT_STORE = 'documents'
 const FILE_STORE = 'files'
 const FRONTEND_ONLY = import.meta.env.VITE_FRONTEND_ONLY === 'true'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
 let databasePromise
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+}
 
 function openDatabase() {
   if (!('indexedDB' in window)) {
@@ -91,7 +96,7 @@ async function removeDocument(path) {
 async function backendRequest(path, init = {}) {
   let response
   try {
-    response = await fetch(path, {
+    response = await fetch(apiUrl(path), {
       cache: 'no-store',
       credentials: 'same-origin',
       ...init,
@@ -156,7 +161,7 @@ export async function request(path, init = {}) {
   if (url.pathname === '/api/clickup' && method === 'GET') {
     let response
     try {
-      response = await fetch(`${url.pathname}${url.search}`, { cache: 'no-store' })
+      response = await fetch(apiUrl(`${url.pathname}${url.search}`), { cache: 'no-store' })
     } catch {
       throw new Error('ClickUp sync is unavailable because its optional serverless endpoint could not be reached.')
     }
@@ -232,11 +237,11 @@ export const api = {
         await upload(id, file, {
           access: 'private',
           contentType: file.type || 'application/octet-stream',
-          handleUploadUrl: `/api/files?scope=${encodeURIComponent(scope)}`,
+          handleUploadUrl: apiUrl(`/api/files?scope=${encodeURIComponent(scope)}`),
           clientPayload: JSON.stringify({ id, scope, name: file.name }),
           multipart: file.size > 5 * 1024 * 1024,
         })
-        return { id, url: `/api/files/${id}`, name: file.name, size: file.size }
+        return { id, url: apiUrl(`/api/files/${id}`), name: file.name, size: file.size }
       }
 
       const body = new FormData()
@@ -249,12 +254,16 @@ export const api = {
     )
     return { id, url: `local-file:${id}`, name: file.name, size: file.size }
   },
-  fileUrl: (id) => FRONTEND_ONLY ? `local-file:${encodeURIComponent(id)}` : `/api/files/${encodeURIComponent(id)}`,
+  fileUrl: (id) =>
+    FRONTEND_ONLY ? `local-file:${encodeURIComponent(id)}` : apiUrl(`/api/files/${encodeURIComponent(id)}`),
   downloadFile: async (id) => {
     if (!FRONTEND_ONLY) {
       let response
       try {
-        response = await fetch(`/api/files/${encodeURIComponent(id)}`, { cache: 'no-store', credentials: 'same-origin' })
+        response = await fetch(apiUrl(`/api/files/${encodeURIComponent(id)}`), {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
       } catch {
         throw new Error('Could not connect to the TaskFlow database to download this file.')
       }
