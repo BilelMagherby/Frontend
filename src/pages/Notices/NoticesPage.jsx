@@ -308,18 +308,18 @@ export function NoticesPage({ tasks, meetings, history, clickupStatus, canViewHR
     <section className="notices-page">
       <header className="top notices-header">
         <div>
-          <h1><Icon name="bell" size={23} /> CEO Notices</h1>
+          <h1><Icon name="bell" size={23} /> CEO Announcements</h1>
           <p className="mu">A central feed of activity, updates, and items needing attention across every section and company.</p>
         </div>
         <div className="notices-summary">
-          <strong>{notices.length}</strong> notices <span>·</span> <b>{attentionCount}</b> need attention
+          <strong>{notices.length}</strong> announcements <span>·</span> <b>{attentionCount}</b> need attention
         </div>
       </header>
       {hrError && <p className="hr-storage-error" role="alert">{hrError}</p>}
       {auditError && <p className="hr-storage-error" role="alert">{auditError}</p>}
       <div className="notices-toolbar">
-        <label className="hr-record-search"><Icon name="search" size={15} /><input aria-label="Search notices" onChange={(event) => setSearch(event.target.value)} placeholder="Search notices" value={search} /></label>
-        <div className="notices-categories" aria-label="Notice categories">
+        <label className="hr-record-search"><Icon name="search" size={15} /><input aria-label="Search announcements" onChange={(event) => setSearch(event.target.value)} placeholder="Search announcements" value={search} /></label>
+        <div className="notices-categories" aria-label="Announcement categories">
           {categories.map((item) => (
             <button aria-pressed={category === item} className={category === item ? 'on' : ''} key={item} onClick={() => setCategory(item)} type="button">{item}</button>
           ))}
@@ -342,7 +342,7 @@ export function NoticesPage({ tasks, meetings, history, clickupStatus, canViewHR
       ) : (
         <div className="card notices-empty">
           <Icon name="check" size={22} />
-          <h2>{notices.length ? 'No matching notices' : 'You’re all caught up'}</h2>
+          <h2>{notices.length ? 'No matching announcements' : 'You’re all caught up'}</h2>
           <p>{notices.length ? 'Try another category or search.' : 'New activity and important updates from across your organization will appear here.'}</p>
           {(search || category !== 'All') && <Button onClick={() => { setSearch(''); setCategory('All') }}>Clear filters</Button>}
         </div>
