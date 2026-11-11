@@ -894,7 +894,7 @@ export function App() {
         ? activeUser.permissions?.includes('gulf')
         : !['roles', 'activity'].includes(pageKey) && activeUser.permissions?.includes(pageKey))
 
-  const visiblePages = PAGES.filter(([key]) => !['foodics', 'hr'].includes(key) && canAccessPage(key))
+  const visiblePages = PAGES.filter(([key]) => key !== 'foodics' && canAccessPage(key))
   const selectedProject = projects.find((project) => project.id === filters.project)
   const filteredClickup = visibleClickup
   const pageTitle =

@@ -1,203 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { Button } from '../../components/ui/Button.jsx'
-import { api, request } from '../../services/api.js'
-import { downloadEmployeeTemplate, parseEmployeeExcel } from './employeeTemplate.js'
+import { api } from '../../services/api.js'
+import { hrApi } from '../../services/hrApi.js'
+import { downloadEmployeeTemplate } from './employeeTemplate.js'
+import { EmployeeFormModal } from './EmployeeFormModal.jsx'
+import { EmployeeProfileModal } from './EmployeeProfileModal.jsx'
+import { EmployeeImportModal } from './EmployeeImportModal.jsx'
 
 const HR_COMPANIES = ['Natheelco', 'Hajiss Café', 'Odun Pide', 'Ghalia', 'Dani Designs']
 
-const ORGANIZATION_FIELDS = [
-  { key: 'company', label: 'Company / project', type: 'select', options: HR_COMPANIES, required: true },
-  { key: 'branch', label: 'Branch', type: 'text', required: true },
-]
-
-const MODULES = [
-  {
-    id: 'employees',
-    title: 'Employees',
-    description: 'Employee profiles, employment, contracts, salary, and documents.',
-    icon: 'users',
-    tone: 'blue',
-    fields: [
-      { key: 'employeeId', label: 'Employee ID / Serial number', required: true },
-      { key: 'name', label: 'Full name', required: true },
-      { key: 'dob', label: 'Date of birth', type: 'date' },
-      { key: 'email', label: 'Email address', type: 'email' },
-      { key: 'phone', label: 'Phone number', type: 'tel' },
-      { key: 'foreignOrLocal', label: 'Foreign / Local', type: 'select', options: ['Local', 'Foreign'] },
-      { key: 'nationality', label: 'Nationality' },
-      { key: 'iqamaNumber', label: 'ID / Iqama number' },
-      { key: 'passportNumber', label: 'Passport number' },
-      { key: 'address', label: 'Address', type: 'textarea' },
-      { key: 'position', label: 'Position' },
-      { key: 'jobTitle', label: 'Job title' },
-      { key: 'department', label: 'Department' },
-      { key: 'qualification', label: 'Qualification' },
-      { key: 'status', label: 'Employment status', type: 'select', options: ['Active', 'Inactive', 'On leave'], required: true },
-      { key: 'contractType', label: 'Contract type', type: 'select', options: ['Permanent', 'Fixed term', 'Part-time', 'Temporary', 'Other'] },
-      { key: 'startDate', label: 'Start date', type: 'date' },
-      { key: 'endDate', label: 'End date', type: 'date' },
-      { key: 'workingDays', label: 'Working days' },
-      { key: 'monthlySalary', label: 'Monthly salary (SAR)', type: 'number' },
-      { key: 'annualSalary', label: 'Annual salary (SAR)', type: 'number' },
-      { key: 'overtimeRate', label: 'Overtime rate per hour (SAR)', type: 'number' },
-      { key: 'holidayDays', label: 'Number of holidays days', type: 'number' },
-      { key: 'openingHolidayBalance', label: 'Opening holiday balance', type: 'number' },
-      { key: 'bankName', label: 'Bank name' },
-      { key: 'accountNumber', label: 'Bank account number' },
-      { key: 'iban', label: 'IBAN' },
-      { key: 'routeSwift', label: 'Route Swift' },
-      { key: 'bankCountry', label: 'Bank country' },
-      { key: 'allowances', label: 'Monthly allowances (SAR)', type: 'number' },
-      { key: 'documents', label: 'Document names or secure file references', type: 'textarea' },
-    ],
-  },
-  {
-    id: 'attendance',
-    title: 'Attendance',
-    description: 'Check-in and check-out, working hours, absences, and overtime.',
-    icon: 'calendar-clock',
-    tone: 'blue',
-    fields: [
-      { key: 'employee', label: 'Employee', required: true },
-      { key: 'date', label: 'Date', type: 'date', required: true },
-      { key: 'checkIn', label: 'Check-in', type: 'time' },
-      { key: 'checkOut', label: 'Check-out', type: 'time' },
-      { key: 'workingHours', label: 'Working hours', type: 'number' },
-      { key: 'overtimeHours', label: 'Overtime hours', type: 'number' },
-      { key: 'status', label: 'Status', type: 'select', options: ['Present', 'Late', 'Absent', 'Remote'], required: true },
-      { key: 'notes', label: 'Notes', type: 'textarea' },
-    ],
-  },
-  {
-    id: 'shifts',
-    title: 'Shifts',
-    description: 'Schedule shifts by employee, company, and branch.',
-    icon: 'calendar',
-    tone: 'teal',
-    fields: [
-      { key: 'employee', label: 'Employee', required: true },
-      { key: 'date', label: 'Shift date', type: 'date', required: true },
-      { key: 'startTime', label: 'Start time', type: 'time', required: true },
-      { key: 'endTime', label: 'End time', type: 'time', required: true },
-      { key: 'status', label: 'Shift status', type: 'select', options: ['Scheduled', 'Confirmed', 'Completed', 'Cancelled'], required: true },
-      { key: 'notes', label: 'Notes' },
-    ],
-  },
-  {
-    id: 'leave',
-    title: 'Leave management',
-    description: 'Submit requests, track balances, and approve leave.',
-    icon: 'calendar',
-    tone: 'violet',
-    fields: [
-      { key: 'employee', label: 'Employee', required: true },
-      { key: 'leaveType', label: 'Leave type', type: 'select', options: ['Annual leave', 'Sick leave', 'Unpaid leave', 'Other'], required: true },
-      { key: 'startDate', label: 'Start date', type: 'date', required: true },
-      { key: 'endDate', label: 'End date', type: 'date', required: true },
-      { key: 'balanceDays', label: 'Remaining balance (days)', type: 'number' },
-      { key: 'status', label: 'Request status', type: 'select', options: ['Pending', 'Approved', 'Declined'], required: true },
-      { key: 'notes', label: 'Notes' },
-    ],
-  },
-  {
-    id: 'payroll',
-    title: 'Payroll',
-    description: 'Monthly salaries, allowances, deductions, advances, and payslips.',
-    icon: 'wallet',
-    tone: 'green',
-    fields: [
-      { key: 'employee', label: 'Employee', required: true },
-      { key: 'period', label: 'Pay period (YYYY-MM)', required: true },
-      { key: 'basicSalary', label: 'Basic salary (SAR)', type: 'number', required: true },
-      { key: 'allowances', label: 'Allowances (SAR)', type: 'number' },
-      { key: 'overtime', label: 'Overtime (SAR)', type: 'number' },
-      { key: 'deductions', label: 'Deductions (SAR)', type: 'number' },
-      { key: 'advances', label: 'Salary advances (SAR)', type: 'number' },
-      { key: 'endOfService', label: 'End-of-service amount (SAR)', type: 'number' },
-      { key: 'payDate', label: 'Pay date', type: 'date' },
-      { key: 'status', label: 'Payroll status', type: 'select', options: ['Draft', 'In review', 'Ready', 'Paid'], required: true },
-      { key: 'notes', label: 'Notes' },
-    ],
-  },
-  {
-    id: 'recruitment',
-    title: 'Recruitment',
-    description: 'Vacancies, candidate profiles, interviews, evaluation, and hiring.',
-    icon: 'user-plus',
-    tone: 'amber',
-    fields: [
-      { key: 'position', label: 'Vacancy / position', required: true },
-      { key: 'department', label: 'Department' },
-      { key: 'candidate', label: 'Candidate name' },
-      { key: 'email', label: 'Candidate email', type: 'email' },
-      { key: 'phone', label: 'Candidate contact', type: 'tel' },
-      { key: 'cv', label: 'CV reference or link', type: 'url' },
-      { key: 'stage', label: 'Hiring stage', type: 'select', options: ['New', 'Screening', 'Interview', 'Offer', 'Hired', 'Not selected'], required: true },
-      { key: 'nextInterview', label: 'Interview date', type: 'date' },
-      { key: 'evaluation', label: 'Candidate evaluation', type: 'textarea' },
-    ],
-  },
-  {
-    id: 'holidays',
-    title: 'Holidays',
-    description: 'Company and branch holiday calendar.',
-    icon: 'calendar',
-    tone: 'indigo',
-    fields: [
-      { key: 'name', label: 'Holiday name', required: true },
-      { key: 'startDate', label: 'Start date', type: 'date', required: true },
-      { key: 'endDate', label: 'End date', type: 'date', required: true },
-      { key: 'type', label: 'Holiday type', type: 'select', options: ['Public holiday', 'Company holiday', 'Branch closure', 'Other'], required: true },
-      { key: 'notes', label: 'Notes' },
-    ],
-  },
-  {
-    id: 'onboarding',
-    title: 'Onboarding',
-    description: 'New-hire checklists, required documents, and onboarding progress.',
-    icon: 'check-square',
-    tone: 'teal',
-    fields: [
-      { key: 'employee', label: 'New employee', required: true },
-      { key: 'startDate', label: 'Start date', type: 'date', required: true },
-      { key: 'manager', label: 'Manager' },
-      { key: 'status', label: 'Onboarding status', type: 'select', options: ['Not started', 'In progress', 'Complete'], required: true },
-      { key: 'checklist', label: 'Checklist / notes', type: 'textarea' },
-    ],
-  },
-  {
-    id: 'learning',
-    title: 'Learning & development',
-    description: 'Training plans, course completion, and development records.',
-    icon: 'book-open',
-    tone: 'indigo',
-    fields: [
-      { key: 'course', label: 'Course / training', required: true },
-      { key: 'employee', label: 'Employee', required: true },
-      { key: 'provider', label: 'Provider' },
-      { key: 'dueDate', label: 'Due date', type: 'date' },
-      { key: 'status', label: 'Training status', type: 'select', options: ['Planned', 'In progress', 'Completed'], required: true },
-      { key: 'notes', label: 'Notes' },
-    ],
-  },
-  {
-    id: 'policies',
-    title: 'Policies & compliance',
-    description: 'HR policies, acknowledgements, and compliance documentation.',
-    icon: 'file-check',
-    tone: 'rose',
-    fields: [
-      { key: 'policy', label: 'Policy / document', required: true },
-      { key: 'category', label: 'Category' },
-      { key: 'reviewDate', label: 'Review date', type: 'date' },
-      { key: 'status', label: 'Status', type: 'select', options: ['Draft', 'Active', 'Review due', 'Archived'], required: true },
-      { key: 'notes', label: 'Notes / acknowledgement details', type: 'textarea' },
-    ],
-  },
-]
-
-const MODULE_BY_ID = new Map(MODULES.map((module) => [module.id, module]))
 const TODAY = () => new Date().toISOString().slice(0, 10)
 const CURRENT_PERIOD = () => new Date().toISOString().slice(0, 7)
 const asAmount = (value) => Number(value) || 0
@@ -205,10 +17,16 @@ const formatMoney = (value) =>
   new Intl.NumberFormat(undefined, { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(value)
 
 function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map((value) => {
-    const text = String(value ?? '')
-    return `"${text.replaceAll('"', '""')}"`
-  }).join(',')).join('\r\n')
+  const csv = rows
+    .map((row) =>
+      row
+        .map((value) => {
+          const text = String(value ?? '')
+          return `"${text.replaceAll('"', '""')}"`
+        })
+        .join(',')
+    )
+    .join('\r\n')
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
   link.download = filename
@@ -217,640 +35,1191 @@ function downloadCsv(filename, rows) {
 }
 
 export function HRWorkspace() {
+  // Navigation / Views
+  const [activeTab, setActiveTab] = useState('employees') // 'employees' | 'attendance' | 'leave' | 'payroll' | 'shifts' | 'holidays' | 'recruitment' | 'policies' | 'activity'
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'cards'
+
+  // Data
   const [records, setRecords] = useState([])
   const [storageReady, setStorageReady] = useState(false)
   const [storageError, setStorageError] = useState('')
-  const [activeModuleId, setActiveModuleId] = useState('')
-  const [editingRecord, setEditingRecord] = useState(null)
-  const [formData, setFormData] = useState({})
-  const [showForm, setShowForm] = useState(false)
+  const [toastMessage, setToastMessage] = useState(null)
+
+  // Filters & Search for Employee Directory
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [nationalityFilter, setNationalityFilter] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [positionFilter, setPositionFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
-  const [showArchived, setShowArchived] = useState(false)
-  const [documentFile, setDocumentFile] = useState(null)
-  const [importStatus, setImportStatus] = useState(null)
+
+  // Sorting & Pagination
+  const [sortField, setSortField] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  // Modals
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [employeeToEdit, setEmployeeToEdit] = useState(null)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [selectedProfileEmployee, setSelectedProfileEmployee] = useState(null)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [deleteConfirmEmployee, setDeleteConfirmEmployee] = useState(null)
+
+  // Operations Submodules State
+  const [submoduleEditingRecord, setSubmoduleEditingRecord] = useState(null)
+  const [submoduleFormData, setSubmoduleFormData] = useState({})
+  const [showSubmoduleForm, setShowSubmoduleForm] = useState(false)
+
+  const showToast = (message, type = 'success') => {
+    setToastMessage({ message, type })
+    window.setTimeout(() => setToastMessage(null), 5000)
+  }
+
+  // Load all HR records from backend database
+  const loadRecords = async () => {
+    try {
+      const rows = await api.list('hr')
+      setRecords(rows.map((row) => ({ ...row.data, id: row.id })))
+      setStorageError('')
+    } catch (error) {
+      setStorageError(`Could not load HR records from database: ${error.message}`)
+    } finally {
+      setStorageReady(true)
+    }
+  }
 
   useEffect(() => {
     let active = true
-    const loadRecords = async () => {
+    const init = async () => {
       try {
         const rows = await api.list('hr')
-        if (active) setRecords(rows.map((row) => ({ ...row.data, id: row.id })))
+        if (active) {
+          setRecords(rows.map((row) => ({ ...row.data, id: row.id })))
+        }
       } catch (error) {
-        if (active) setStorageError(`Could not load HR records from the backend: ${error.message}`)
+        if (active) setStorageError(`Could not load HR records: ${error.message}`)
       } finally {
         if (active) setStorageReady(true)
       }
     }
-    loadRecords()
+    init()
+
     const poll = window.setInterval(() => {
       if (!document.hidden) loadRecords()
     }, 15000)
+
     return () => {
       active = false
       window.clearInterval(poll)
     }
   }, [])
 
-  const liveRecords = records.filter((record) => !record.archivedAt)
-  const scopedRecords = liveRecords.filter((record) =>
-    (!companyFilter || record.data.company === companyFilter) &&
-    (!branchFilter || record.data.branch === branchFilter))
-  const employees = scopedRecords.filter((record) => record.module === 'employees')
-  const activeEmployees = employees.filter((record) => record.data.status === 'Active')
-  const inactiveEmployees = employees.filter((record) => record.data.status === 'Inactive')
-  const todayAttendance = scopedRecords.filter(
-    (record) => record.module === 'attendance' && record.data.date === TODAY(),
+  // Live Records & Scoping
+  const liveRecords = useMemo(() => records.filter((r) => !r.archivedAt), [records])
+  const scopedRecords = useMemo(
+    () =>
+      liveRecords.filter(
+        (r) =>
+          (!companyFilter || r.data?.company === companyFilter) &&
+          (!branchFilter || r.data?.branch === branchFilter)
+      ),
+    [liveRecords, companyFilter, branchFilter]
   )
-  const absentToday = todayAttendance.filter((record) => record.data.status === 'Absent').length
-  const lateToday = todayAttendance.filter((record) => record.data.status === 'Late').length
-  const employeesOnLeave = new Set(scopedRecords.filter(
-    (record) =>
-      record.module === 'leave' &&
-      record.data.status === 'Approved' &&
-      record.data.startDate <= TODAY() &&
-      record.data.endDate >= TODAY(),
-  ).map((record) => record.data.employee)).size
-  const payrollTotal = scopedRecords
-    .filter((record) => record.module === 'payroll' && record.data.period === CURRENT_PERIOD())
-    .reduce((sum, record) => sum + asAmount(record.data.basicSalary) + asAmount(record.data.allowances) +
-      asAmount(record.data.overtime) - asAmount(record.data.deductions) - asAmount(record.data.advances), 0)
-  const branchCounts = employees.reduce((counts, employee) => {
-    const branch = employee.data.branch || 'Unassigned'
-    counts.set(branch, (counts.get(branch) || 0) + 1)
-    return counts
-  }, new Map())
-  const upcomingHolidays = scopedRecords
-    .filter((record) => record.module === 'holidays' && record.data.endDate >= TODAY())
-    .sort((a, b) => a.data.startDate.localeCompare(b.data.startDate))
-    .slice(0, 5)
-  const pendingApprovals = scopedRecords.filter((record) => record.module === 'leave' && record.data.status === 'Pending')
-  const expiringContracts = employees.filter((employee) => {
-    const daysRemaining = Math.ceil((new Date(`${employee.data.contractEnd}T00:00:00`) - new Date(`${TODAY()}T00:00:00`)) / 86_400_000)
-    return employee.data.contractEnd && daysRemaining >= 0 && daysRemaining <= 30
-  })
-  const upcomingInterviews = scopedRecords.filter((record) => {
-    if (record.module !== 'recruitment' || !record.data.nextInterview) return false
-    const daysRemaining = Math.ceil((new Date(`${record.data.nextInterview}T00:00:00`) - new Date(`${TODAY()}T00:00:00`)) / 86_400_000)
-    return daysRemaining >= 0 && daysRemaining <= 7 && record.data.stage !== 'Hired' && record.data.stage !== 'Not selected'
-  })
-  const activeModule = MODULE_BY_ID.get(activeModuleId)
-  const companyOptions = [...new Set([
-    ...HR_COMPANIES,
-    ...liveRecords.map((record) => record.data.company).filter(Boolean),
-  ])]
-  const branchOptions = [...new Set(liveRecords
-    .filter((record) => !companyFilter || record.data.company === companyFilter)
-    .map((record) => record.data.branch)
-    .filter(Boolean))].sort()
 
-  const moduleRecords = useMemo(() => {
-    if (!activeModuleId) return []
-    return records.filter((record) => record.module === activeModuleId &&
-      Boolean(record.archivedAt) === showArchived &&
-      (!companyFilter || record.data.company === companyFilter) &&
-      (!branchFilter || record.data.branch === branchFilter) &&
-      (!statusFilter || (record.data.status || record.data.stage) === statusFilter) &&
-      (!search || JSON.stringify(record.data).toLowerCase().includes(search.trim().toLowerCase())))
-  }, [activeModuleId, branchFilter, companyFilter, records, search, showArchived, statusFilter])
+  // Extract Employees
+  const allEmployees = useMemo(
+    () => scopedRecords.filter((r) => r.module === 'employees'),
+    [scopedRecords]
+  )
 
-  async function saveRecord(record, action) {
-    const historyRecord = {
-      id: `hr-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      module: 'activity',
-      data: {
-        action,
-        recordId: record.id,
-        module: record.module,
-        label: record.data.name || record.data.employee || record.data.position || record.data.policy || record.data.course || 'HR record',
-        company: record.data.company || '',
-        branch: record.data.branch || '',
-        at: new Date().toISOString(),
-      },
-      createdAt: new Date().toISOString(),
-    }
-    try {
-      await Promise.all([api.put(`hr/${record.id}`, record), api.put(`hr/${historyRecord.id}`, historyRecord)])
-      setRecords((current) => [
-        record,
-        ...current.filter((item) => item.id !== record.id && item.module !== 'activity'),
-        historyRecord,
-        ...current.filter((item) => item.module === 'activity'),
-      ])
-      setStorageError('')
-      setEditingRecord(null)
-      setFormData({})
-      setShowForm(false)
-    } catch (error) {
-      setStorageError(`Could not save HR record: ${error.message}`)
-    }
-  }
+  // KPI Calculations
+  const stats = useMemo(() => {
+    const total = allEmployees.length
+    const active = allEmployees.filter((e) => (e.data?.status || 'Active') === 'Active').length
+    const inactive = allEmployees.filter((e) => e.data?.status === 'Inactive').length
 
-  async function handleEmployeeFileUpload(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    event.target.value = ''
-    setImportStatus({ type: 'busy', message: `Processing "${file.name}"…` })
-    try {
-      const parsedEmployees = await parseEmployeeExcel(file, companyFilter, branchFilter)
-      setImportStatus({ type: 'busy', message: `Saving ${parsedEmployees.length} employee(s) to the database…` })
+    // Employees on leave
+    const leaveSet = new Set(
+      scopedRecords
+        .filter(
+          (r) =>
+            r.module === 'leave' &&
+            r.data?.status === 'Approved' &&
+            r.data?.startDate <= TODAY() &&
+            r.data?.endDate >= TODAY()
+        )
+        .map((r) => r.data?.employee)
+    )
+    const onLeave = allEmployees.filter((e) => e.data?.status === 'On leave' || leaveSet.has(e.data?.name)).length
 
-      for (let index = 0; index < parsedEmployees.length; index += 500) {
-        const batch = parsedEmployees.slice(index, index + 500)
-        try {
-          await request('/api/docs?collection=hr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              collection: 'hr',
-              items: batch.map((r) => ({ id: r.id, data: r })),
-            }),
-          })
-        } catch {
-          await Promise.all(batch.map((r) => api.put(`hr/${r.id}`, r)))
-        }
+    // New employees (joined within 90 days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
+    const newEmployees = allEmployees.filter((e) => {
+      const start = e.data?.startDate || e.data?.contractStart || e.createdAt?.slice(0, 10) || ''
+      return start && start >= ninetyDaysAgo
+    }).length
+
+    return { total, active, inactive, onLeave, newEmployees }
+  }, [allEmployees, scopedRecords])
+
+  // Filter options dynamically collected from employee records
+  const filterOptions = useMemo(() => {
+    const nationalities = [...new Set(allEmployees.map((e) => e.data?.nationality).filter(Boolean))].sort()
+    const departments = [...new Set(allEmployees.map((e) => e.data?.department).filter(Boolean))].sort()
+    const positions = [...new Set(allEmployees.map((e) => e.data?.position || e.data?.jobTitle).filter(Boolean))].sort()
+    const companies = [...new Set([...HR_COMPANIES, ...liveRecords.map((r) => r.data?.company).filter(Boolean)])].sort()
+    const branches = [
+      ...new Set(
+        liveRecords
+          .filter((r) => !companyFilter || r.data?.company === companyFilter)
+          .map((r) => r.data?.branch)
+          .filter(Boolean)
+      ),
+    ].sort()
+
+    return { nationalities, departments, positions, companies, branches }
+  }, [allEmployees, liveRecords, companyFilter])
+
+  // Filtered & Sorted Employees
+  const filteredEmployees = useMemo(() => {
+    const q = search.trim().toLowerCase()
+
+    let result = allEmployees.filter((emp) => {
+      const d = emp.data || {}
+      if (statusFilter && d.status !== statusFilter) return false
+      if (nationalityFilter && d.nationality !== nationalityFilter) return false
+      if (departmentFilter && d.department !== departmentFilter) return false
+      if (positionFilter && (d.position || d.jobTitle) !== positionFilter) return false
+
+      if (q) {
+        const text = `${d.name || ''} ${d.serialNumber || ''} ${d.employeeId || ''} ${d.email || ''} ${d.iqamaNumber || ''} ${d.phone || ''} ${d.position || ''} ${d.department || ''}`.toLowerCase()
+        if (!text.includes(q)) return false
       }
-
-      const historyRecord = {
-        id: `hr-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        module: 'activity',
-        data: {
-          action: 'Bulk imported',
-          label: `${parsedEmployees.length} employees`,
-          company: companyFilter || 'All companies',
-          branch: branchFilter || '',
-          at: new Date().toISOString(),
-        },
-        createdAt: new Date().toISOString(),
-      }
-      await api.put(`hr/${historyRecord.id}`, historyRecord).catch(() => {})
-
-      setRecords((current) => [...parsedEmployees, ...current, historyRecord])
-      setImportStatus({
-        type: 'success',
-        message: `Successfully imported and saved ${parsedEmployees.length} employee(s) to the database!`,
-      })
-      window.setTimeout(() => setImportStatus(null), 8000)
-    } catch (error) {
-      setImportStatus({ type: 'error', message: error.message || 'Could not parse or import the employee spreadsheet.' })
-    }
-  }
-
-  function startCreate(moduleId = activeModuleId) {
-    setActiveModuleId(moduleId)
-    setEditingRecord(null)
-    setDocumentFile(null)
-    setFormData({
-      ...(companyFilter ? { company: companyFilter } : {}),
-      ...(branchFilter ? { branch: branchFilter } : {}),
-      ...(moduleId === 'employees' ? { status: 'Active' } : {}),
-      ...(moduleId === 'attendance' ? { date: TODAY(), status: 'Present' } : {}),
-      ...(moduleId === 'leave' ? { status: 'Pending' } : {}),
-      ...(moduleId === 'payroll' ? { period: CURRENT_PERIOD(), status: 'Draft' } : {}),
+      return true
     })
-    setShowForm(true)
-  }
 
-  function startEdit(record) {
-    setDocumentFile(null)
-    setEditingRecord(record)
-    setFormData({
-      company: record.data.company || 'Unassigned',
-      branch: record.data.branch || 'Unassigned',
-      ...record.data,
-    })
-    setShowForm(true)
-  }
-
-  async function submitRecord(event) {
-    event.preventDefault()
-    if (!activeModule) return
-    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-      setStorageError('The end date must be on or after the start date.')
-      return
-    }
-    const now = new Date().toISOString()
-    let data = { ...formData }
-    if (documentFile && activeModuleId === 'employees') {
-      try {
-        const uploaded = await api.uploadFile(documentFile, 'hr')
-        data = { ...data, documentFileId: uploaded.id, documentFileName: documentFile.name }
-      } catch (error) {
-        setStorageError(`Could not upload the employee document: ${error.message}`)
-        return
+    result.sort((a, b) => {
+      let valA = a.data?.[sortField] ?? ''
+      let valB = b.data?.[sortField] ?? ''
+      if (sortField === 'name') {
+        valA = a.data?.name || ''
+        valB = b.data?.name || ''
       }
-    }
-    const record = {
-      id: editingRecord?.id || `hr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      module: activeModuleId,
-      data,
-      createdAt: editingRecord?.createdAt || now,
-      updatedAt: now,
-      archivedAt: editingRecord?.archivedAt || '',
-    }
-    await saveRecord(record, editingRecord ? 'Updated' : 'Created')
-    setDocumentFile(null)
+      if (sortField === 'salary') {
+        valA = Number(a.data?.monthlySalary || 0)
+        valB = Number(b.data?.monthlySalary || 0)
+        return sortOrder === 'asc' ? valA - valB : valB - valA
+      }
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortOrder === 'asc' ? valA - valB : valB - valA
+      }
+      return sortOrder === 'asc' ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA))
+    })
+
+    return result
+  }, [allEmployees, search, statusFilter, nationalityFilter, departmentFilter, positionFilter, sortField, sortOrder])
+
+  // Paginated Employees
+  const paginatedEmployees = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredEmployees.slice(start, start + pageSize)
+  }, [filteredEmployees, page, pageSize])
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize))
+
+  // Handlers for Employees
+  const handleOpenCreateForm = () => {
+    setEmployeeToEdit(null)
+    setIsFormOpen(true)
   }
 
-  async function toggleArchive(record) {
-    await saveRecord({ ...record, archivedAt: record.archivedAt ? '' : new Date().toISOString(), updatedAt: new Date().toISOString() },
-      record.archivedAt ? 'Restored' : 'Archived')
+  const handleOpenEditForm = (employee) => {
+    setEmployeeToEdit(employee)
+    setIsFormOpen(true)
   }
 
-  async function updateLeaveStatus(record, status) {
-    await saveRecord({ ...record, data: { ...record.data, status }, updatedAt: new Date().toISOString() },
-      `Leave ${status.toLowerCase()}`)
+  const handleOpenProfile = (employee) => {
+    setSelectedProfileEmployee(employee)
+    setIsProfileOpen(true)
   }
 
-  async function toggleAttendance(employee) {
-    const name = employee.data.name
-    const attendance = liveRecords.find((record) =>
-      record.module === 'attendance' && record.data.employee === name && record.data.date === TODAY())
-    const now = new Date()
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    if (!attendance) {
-      await saveRecord({
-        id: `hr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        module: 'attendance',
-        data: {
-          employee: name,
-          company: employee.data.company || '',
-          branch: employee.data.branch || '',
-          date: TODAY(),
-          checkIn: time,
-          status: 'Present',
-        },
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        archivedAt: '',
-      }, 'Checked in')
-      return
+  const handleSaveEmployee = async (employeeData, editId) => {
+    if (editId) {
+      await hrApi.updateEmployee(editId, employeeData)
+      showToast(`Updated employee ${employeeData.name} successfully!`)
+    } else {
+      await hrApi.createEmployee(employeeData)
+      showToast(`Registered new employee ${employeeData.name} successfully!`)
     }
-    if (!attendance.data.checkIn) {
-      await saveRecord({ ...attendance, data: { ...attendance.data, checkIn: time, status: 'Present' }, updatedAt: now.toISOString() }, 'Checked in')
-      return
-    }
-    if (!attendance.data.checkOut) {
-      const [inHours, inMinutes] = attendance.data.checkIn.split(':').map(Number)
-      const [outHours, outMinutes] = time.split(':').map(Number)
-      let workedMinutes = outHours * 60 + outMinutes - inHours * 60 - inMinutes
-      if (workedMinutes < 0) workedMinutes += 24 * 60
-      const workingHours = (workedMinutes / 60).toFixed(2)
-      await saveRecord({
-        ...attendance,
-        data: {
-          ...attendance.data,
-          checkOut: time,
-          workingHours,
-        },
-        updatedAt: now.toISOString(),
-      }, 'Checked out')
-    }
+    await loadRecords()
   }
 
-  async function downloadEmployeeDocument(record) {
+  const handleDeleteEmployee = async (employee) => {
     try {
-      const blobUrl = URL.createObjectURL(await api.downloadFile(record.data.documentFileId))
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = record.data.documentFileName || 'employee-document'
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-    } catch (error) {
-      setStorageError(`Could not download the employee document: ${error.message}`)
+      await hrApi.deleteEmployee(employee.id)
+      setDeleteConfirmEmployee(null)
+      setIsProfileOpen(false)
+      showToast(`Deleted employee ${employee.data?.name || 'record'} from database.`)
+      await loadRecords()
+    } catch (err) {
+      showToast(`Could not delete employee: ${err.message}`, 'error')
     }
   }
 
-  function printPayslip(record) {
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    })[character])
-    const fields = activeModule.fields
-      .filter((field) => record.data[field.key])
-      .map((field) => `<tr><th>${escapeHtml(field.label)}</th><td>${escapeHtml(record.data[field.key])}</td></tr>`)
-      .join('')
-    const netPay = formatMoney(asAmount(record.data.basicSalary) + asAmount(record.data.allowances) +
-      asAmount(record.data.overtime) - asAmount(record.data.deductions) - asAmount(record.data.advances))
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      setStorageError('Allow pop-ups to generate the payslip.')
-      return
+  const handleEmployeeUpdated = (updated) => {
+    setRecords((current) => current.map((r) => (r.id === updated.id ? updated : r)))
+    if (selectedProfileEmployee?.id === updated.id) {
+      setSelectedProfileEmployee(updated)
     }
-    printWindow.document.write(`<title>Payslip - ${escapeHtml(record.data.employee)}</title><h1>Natheelco Holding · Payslip</h1><table>${fields}</table><h2>Net pay: ${escapeHtml(netPay)}</h2><script>window.print()</script>`)
-    printWindow.document.close()
   }
 
-  async function convertCandidate(record) {
-    const employee = {
-      id: `hr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      module: 'employees',
-      data: {
-        employeeId: `EMP-${Date.now().toString().slice(-6)}`,
-        name: record.data.candidate || '',
-        email: record.data.email || '',
-        phone: record.data.phone || '',
-        jobTitle: record.data.position || '',
-        department: record.data.department || '',
-        company: record.data.company || '',
-        branch: record.data.branch || '',
-        status: 'Active',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      archivedAt: '',
-    }
-    await saveRecord(employee, 'Candidate converted to employee')
-    if (record.data.stage !== 'Hired') {
-      await saveRecord({ ...record, data: { ...record.data, stage: 'Hired' }, updatedAt: new Date().toISOString() },
-        'Candidate marked hired')
-    }
-    setActiveModuleId('employees')
-  }
-
-  function exportModule() {
-    const fields = activeModule?.fields || []
-    const rows = [
-      ['ID', 'Company', 'Branch', ...fields.map((field) => field.label), 'Status', 'Archived'],
-      ...moduleRecords.map((record) => [
-        record.id,
-        record.data.company,
-        record.data.branch,
-        ...fields.map((field) => record.data[field.key]),
-        record.data.status || record.data.stage || '',
-        record.archivedAt ? 'Yes' : 'No',
-      ]),
+  // Export full employee list to CSV
+  const exportEmployees = () => {
+    const headers = [
+      'Serial Number',
+      'Full Name',
+      'Date of Birth',
+      'Email',
+      'Phone',
+      'Type',
+      'Nationality',
+      'ID / Iqama',
+      'Position',
+      'Department',
+      'Monthly Salary',
+      'Annual Salary',
+      'Start Date',
+      'Bank Name',
+      'IBAN',
+      'Status',
+      'Company',
+      'Branch',
     ]
-    downloadCsv(`hr-${activeModuleId || 'records'}-${TODAY()}.csv`, rows)
+    const rows = [
+      headers,
+      ...filteredEmployees.map((e) => {
+        const d = e.data || {}
+        return [
+          d.serialNumber || d.employeeId || '',
+          d.name || '',
+          d.dob || '',
+          d.email || '',
+          d.phone || '',
+          d.foreignOrLocal || '',
+          d.nationality || '',
+          d.iqamaNumber || '',
+          d.position || d.jobTitle || '',
+          d.department || '',
+          d.monthlySalary || '',
+          d.annualSalary || '',
+          d.startDate || d.contractStart || '',
+          d.bankName || '',
+          d.iban || '',
+          d.status || 'Active',
+          d.company || '',
+          d.branch || '',
+        ]
+      }),
+    ]
+    downloadCsv(`employees_export_${TODAY()}.csv`, rows)
   }
 
-  function exportPdf() {
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    })[character])
-    const fields = activeModule?.fields || []
-    const visible = activeModule ? moduleRecords : scopedRecords.filter((record) => record.module === 'employees')
-    const headers = activeModule
-      ? ['Company', 'Branch', ...fields.map((field) => field.label)]
-      : ['Employee ID', 'Name', 'Job title', 'Department', 'Status', 'Company', 'Branch']
-    const rows = visible.map((record) => activeModule
-      ? [record.data.company, record.data.branch, ...fields.map((field) => record.data[field.key])]
-      : [record.data.employeeId, record.data.name, record.data.jobTitle, record.data.department, record.data.status, record.data.company, record.data.branch])
-    const table = `<table><thead><tr>${headers.map((value) => `<th>${escapeHtml(value)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      setStorageError('Allow pop-ups to export HR records as PDF.')
-      return
+  // Instant Download Single Employee Info
+  const downloadSingleEmployee = (emp) => {
+    const d = emp.data || emp
+    const summary = {
+      'Serial Number': d.serialNumber || d.employeeId,
+      'Full Name': d.name,
+      'Email Address': d.email,
+      'Contact Phone': d.phone,
+      'National ID / Iqama': d.iqamaNumber,
+      'Date of Birth': d.dob,
+      Nationality: d.nationality,
+      Type: d.foreignOrLocal,
+      Position: d.position || d.jobTitle,
+      Department: d.department,
+      Status: d.status,
+      'Monthly Salary': `${Number(d.monthlySalary || 0).toLocaleString()} SAR`,
+      'Annual Salary': `${Number(d.annualSalary || 0).toLocaleString()} SAR`,
+      'Start Date': d.startDate || d.contractStart,
+      'Bank Name': d.bankName,
+      IBAN: d.iban,
+      Company: d.company,
+      Branch: d.branch,
     }
-    printWindow.document.write(`<title>Natheelco HR ${escapeHtml(activeModule?.title || 'Overview')}</title><style>body{font:14px Arial,sans-serif;padding:24px;color:#172033}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{text-align:left;padding:8px;border:1px solid #dbe2ea}th{background:#f1f5f9}@media print{body{padding:0}}</style><h1>Natheelco Holding · HR ${escapeHtml(activeModule?.title || 'Overview')}</h1><p>${escapeHtml(companyFilter || 'All companies')} · ${escapeHtml(branchFilter || 'All branches')} · ${TODAY()}</p>${table}<script>window.print()</script>`)
-    printWindow.document.close()
+    const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${d.serialNumber || 'employee'}_${(d.name || 'info').replace(/\s+/g, '_')}.json`
+    link.click()
+    URL.revokeObjectURL(link.href)
   }
-
-  const employeeNames = employees.map((employee) => employee.data.name).filter(Boolean)
-  const statusOptions = activeModule
-    ? [...new Set(records
-      .filter((record) => record.module === activeModuleId)
-      .map((record) => record.data.status || record.data.stage)
-      .filter(Boolean))].sort()
-    : []
 
   return (
-    <section aria-labelledby="hr-page-title" className="hr-page hr-workspace">
-      <header className="hr-page-heading">
+    <div className="hr-workspace-shell">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className={`hr-floating-toast ${toastMessage.type}`}>
+          <Icon name={toastMessage.type === 'error' ? 'alert-triangle' : 'check'} size={16} />
+          <span>{toastMessage.message}</span>
+        </div>
+      )}
+
+      {/* Top Banner / Heading */}
+      <div className="hr-page-header">
         <div>
-          <span className="gulf-eyebrow"><Icon name="hr" size={15} /> NATHEELCO HOLDING · CENTRAL HR</span>
-          <h1 id="hr-page-title">{activeModule ? activeModule.title : 'HR Management'}</h1>
-          <p>{activeModule ? activeModule.description : 'People, attendance, leave, and payroll across all companies and branches.'}</p>
+          <div className="hr-title-wrap">
+            <span className="hr-title-icon"><Icon name="users" size={24} /></span>
+            <div>
+              <h1>HR Management &amp; Employees</h1>
+              <p>Complete enterprise human resources, verified employee directory, database persistence, and document management.</p>
+            </div>
+          </div>
         </div>
-        <div className="hr-header-actions">
-          {activeModule ? (
-            <Button onClick={() => { setActiveModuleId(''); setSearch(''); setShowForm(false) }}>
-              <Icon name="chevron-left" size={15} /> HR overview
-            </Button>
-          ) : (
-            <span className="hr-system-status"><i /> Central HR records</span>
-          )}
-          <Button onClick={exportPdf}><Icon name="download" size={14} /> Export PDF</Button>
-        </div>
-      </header>
 
-      {storageError && <p className="hr-storage-error" role="alert">{storageError}</p>}
-      {pendingApprovals.length > 0 && !activeModule && (
-        <div className="hr-setup-notice" role="status">
-          <span className="hr-notice-icon"><Icon name="info" size={17} /></span>
-          <div><b>{pendingApprovals.length} leave request{pendingApprovals.length === 1 ? '' : 's'} awaiting approval</b>
-            <p>Review and approve or decline requests in Leave Management.</p></div>
-          <Button onClick={() => setActiveModuleId('leave')}>Review requests</Button>
+        {/* Global Organization Selectors */}
+        <div className="hr-org-filters">
+          <label>
+            <span>Company</span>
+            <select value={companyFilter} onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}>
+              <option value="">All companies</option>
+              {filterOptions.companies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Branch</span>
+            <select value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setPage(1) }}>
+              <option value="">All branches</option>
+              {filterOptions.branches.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </label>
         </div>
-      )}
-      {!activeModule && (expiringContracts.length > 0 || upcomingInterviews.length > 0) && (
-        <div className="hr-reminder-strip" role="status">
-        <Icon name="calendar-clock" size={16} />
-        <span>
-          {[
-            expiringContracts.length ? `${expiringContracts.length} contract(s) expire within 30 days` : '',
-            upcomingInterviews.length ? `${upcomingInterviews.length} interview(s) scheduled within 7 days` : '',
-          ].filter(Boolean).join(' · ')}
-        </span>
-        </div>
-      )}
-
-      <div className="hr-workspace-filters">
-        <label>Company / project
-          <select onChange={(event) => { setCompanyFilter(event.target.value); setBranchFilter('') }} value={companyFilter}>
-            <option value="">All companies</option>
-            {companyOptions.map((company) => <option key={company}>{company}</option>)}
-          </select>
-        </label>
-        <label>Branch
-          <select onChange={(event) => setBranchFilter(event.target.value)} value={branchFilter}>
-            <option value="">All branches</option>
-            {branchOptions.map((branch) => <option key={branch}>{branch}</option>)}
-          </select>
-        </label>
       </div>
 
-      {(!activeModule || activeModuleId === 'employees') && (
-        <section aria-label="Bulk employee onboarding" className="hr-bulk-import-block">
-          <div className="hr-bulk-import-info">
-            <span className="hr-bulk-import-icon"><Icon name="users" size={22} /></span>
-            <div className="hr-bulk-import-text">
-              <h3>Bulk Employee Onboarding</h3>
-              <p>Download the standard Excel employee template or upload an Excel file containing General, Personal, Salary, Job &amp; Bank details to register employees directly into the database.</p>
-            </div>
-          </div>
-          <div className="hr-bulk-import-actions">
-            <button className="hr-template-btn" onClick={downloadEmployeeTemplate} type="button">
-              <Icon name="download" size={15} /> Download template employee
-            </button>
-            <label className="hr-upload-label">
-              <Icon name="upload" size={15} /> Upload employee file
-              <input
-                accept=".xlsx,.xls,.csv"
-                onChange={handleEmployeeFileUpload}
-                style={{ display: 'none' }}
-                type="file"
-              />
-            </label>
-          </div>
-          {importStatus && (
-            <div className={`hr-bulk-status ${importStatus.type}`}>
-              <Icon name={importStatus.type === 'success' ? 'check' : importStatus.type === 'error' ? 'alert-triangle' : 'info'} size={15} />
-              <span>{importStatus.message}</span>
-            </div>
-          )}
-        </section>
+      {storageError && (
+        <div className="hr-error-banner">
+          <Icon name="alert-triangle" size={16} />
+          <span>{storageError}</span>
+        </div>
       )}
 
-      {!activeModule && (
-        <>
-          <div className="hr-summary-grid">
-            {[
-              ['Total employees', employees.length, `${activeEmployees.length} active · ${inactiveEmployees.length} inactive`],
-              ['Attendance today', todayAttendance.filter((record) => ['Present', 'Late', 'Remote'].includes(record.data.status)).length, `${absentToday} absent · ${lateToday} late`],
-              ['Employees on leave', employeesOnLeave.length, 'Approved leave today'],
-              ['Monthly payroll', formatMoney(payrollTotal), CURRENT_PERIOD()],
-            ].map(([label, value, detail]) => (
-              <article className="hr-summary-card" key={label}>
-                <span>{label}</span><strong>{value}</strong><small>{detail}</small>
-              </article>
-            ))}
-          </div>
-          <div className="hr-overview-grid">
-            <section className="card sp hr-branch-panel">
-              <h2>Employees by branch</h2>
-              {branchCounts.size ? [...branchCounts].sort((a, b) => b[1] - a[1]).map(([branch, count]) => (
-                <div className="hr-branch-row" key={branch}><span>{branch}</span><b>{count}</b><i style={{ width: `${Math.max(4, count / employees.length * 100)}%` }} /></div>
-              )) : <p className="mu">Add employee profiles to see branch distribution.</p>}
-            </section>
-            <section className="card sp hr-holiday-panel">
-              <div><h2>Upcoming holidays</h2><Button onClick={() => startCreate('holidays')}><Icon name="plus" size={14} /> Add</Button></div>
-              {upcomingHolidays.length ? upcomingHolidays.map((holiday) => (
-                <article key={holiday.id}><b>{holiday.data.name}</b><span>{holiday.data.startDate}{holiday.data.endDate !== holiday.data.startDate ? ` – ${holiday.data.endDate}` : ''}</span><small>{[holiday.data.company, holiday.data.branch].filter(Boolean).join(' · ') || 'All companies'}</small></article>
-              )) : <p className="mu">No upcoming holidays scheduled.</p>}
-            </section>
-          </div>
-          <div className="hr-module-heading">
-            <div><h2>HR operations</h2><p>Manage employees, attendance, leave, payroll, and hiring centrally.</p></div>
-            <span>{MODULES.length} modules</span>
-          </div>
-          <div className="hr-module-grid">
-            {MODULES.map((module) => {
-              const count = scopedRecords.filter((record) => record.module === module.id).length
-              return (
-                <button className="hr-module-card" key={module.id} onClick={() => { setActiveModuleId(module.id); setStatusFilter('') }} type="button">
-                  <span className="hr-module-card-top">
-                    <span className={`hr-module-icon ${module.tone}`}><Icon name={module.icon} size={19} /></span>
-                    <span className={`hr-module-status${count ? ' configured' : ''}`}>{count ? `${count} records` : 'No records'}</span>
-                  </span>
-                  <span className="hr-module-card-title">{module.title}</span>
-                  <span className="hr-module-card-description">{module.description}</span>
-                  <span className="hr-module-card-footer"><span><i /> Manage records</span><Icon name="chevron-right" size={15} /></span>
-                </button>
-              )
-            })}
-          </div>
-          <section className="card sp hr-history-panel">
-            <h2>Recent HR activity</h2>
-            {records.filter((record) => record.module === 'activity')
-              .sort((a, b) => String(b.data.at).localeCompare(String(a.data.at))).slice(0, 8).map((entry) => (
-              <p key={entry.id}><b>{entry.data.action}</b> {entry.data.label} <span>{entry.data.company}{entry.data.branch ? ` · ${entry.data.branch}` : ''} · {new Date(entry.data.at).toLocaleString()}</span></p>
-            ))}
-            {!records.some((record) => record.module === 'activity') && <p className="mu">Updates to HR records will appear here.</p>}
-          </section>
-        </>
-      )}
+      {/* Module Navigation Tabs */}
+      <div className="hr-nav-tabs">
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'employees' ? 'active' : ''}`}
+          onClick={() => setActiveTab('employees')}
+        >
+          <Icon name="users" size={16} />
+          <span>Employee Directory</span>
+          <b className="hr-tab-badge">{allEmployees.length}</b>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'attendance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('attendance')}
+        >
+          <Icon name="calendar-clock" size={16} />
+          <span>Attendance</span>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'leave' ? 'active' : ''}`}
+          onClick={() => setActiveTab('leave')}
+        >
+          <Icon name="calendar" size={16} />
+          <span>Leave &amp; Balances</span>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'payroll' ? 'active' : ''}`}
+          onClick={() => setActiveTab('payroll')}
+        >
+          <Icon name="wallet" size={16} />
+          <span>Payroll</span>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'holidays' ? 'active' : ''}`}
+          onClick={() => setActiveTab('holidays')}
+        >
+          <Icon name="sun" size={16} />
+          <span>Holidays</span>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'recruitment' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recruitment')}
+        >
+          <Icon name="user-plus" size={16} />
+          <span>Recruitment</span>
+        </button>
+        <button
+          type="button"
+          className={`hr-nav-tab ${activeTab === 'activity' ? 'active' : ''}`}
+          onClick={() => setActiveTab('activity')}
+        >
+          <Icon name="database" size={16} />
+          <span>Audit Activity</span>
+        </button>
+      </div>
 
-      {activeModule && (
-        <section aria-label={`${activeModule.title} records`} className="hr-records-panel">
-          <div className="hr-records-toolbar">
-            <div><span className={`hr-module-icon ${activeModule.tone}`}><Icon name={activeModule.icon} size={19} /></span>
-              <div><h2>{activeModule.title}</h2><p>{moduleRecords.length} matching records</p></div></div>
-            <div className="hr-record-actions">
-              <label className="hr-record-search"><Icon name="search" size={15} /><input aria-label={`Search ${activeModule.title}`} onChange={(event) => setSearch(event.target.value)} placeholder="Search records" value={search} /></label>
-              <select aria-label="Filter records by status" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
-                <option value="">All statuses</option>{statusOptions.map((status) => <option key={status}>{status}</option>)}
-              </select>
-              <label className="hr-archived-toggle"><input checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} type="checkbox" /> Archived</label>
-              <Button onClick={exportModule}><Icon name="download" size={14} /> Excel CSV</Button>
-              <Button className="p" disabled={!storageReady} onClick={() => startCreate()}><Icon name="plus" size={15} /> Add record</Button>
-            </div>
-          </div>
-
-          {showForm && (
-            <form className="hr-record-form" onSubmit={submitRecord}>
-              <div className="hr-record-form-heading"><div><h3>{editingRecord ? 'Edit record' : `Add ${activeModule.title.toLowerCase()} record`}</h3><p>Records are scoped to a company and branch for centralized reporting.</p></div>
-                <button aria-label="Close record form" className="btn-icon-close" onClick={() => { setEditingRecord(null); setShowForm(false) }} type="button"><Icon name="close" size={16} /></button></div>
-              <div className="hr-record-fields">
-                {[...ORGANIZATION_FIELDS, ...activeModule.fields].map((field) => (
-                  <label className={`hr-record-field${field.type === 'textarea' ? ' wide' : ''}`} key={field.key}>
-                    <span>{field.label}{field.required && <i>Required</i>}</span>
-                    {field.type === 'select' ? (
-                      <select onChange={(event) => setFormData((current) => ({ ...current, [field.key]: event.target.value }))} required={field.required} value={formData[field.key] || ''}>
-                        <option value="">Select…</option>
-                        {[...new Set([
-                          ...field.options,
-                          ...(field.key === 'company' && formData.company && !field.options.includes(formData.company)
-                            ? [formData.company]
-                            : []),
-                        ])].map((option) => <option key={option}>{option}</option>)}
-                      </select>
-                    ) : field.type === 'textarea' ? (
-                      <textarea onChange={(event) => setFormData((current) => ({ ...current, [field.key]: event.target.value }))} rows={3} value={formData[field.key] || ''} />
-                    ) : (
-                      <input list={field.key === 'employee' ? 'hr-employee-options' : undefined} onChange={(event) => setFormData((current) => ({ ...current, [field.key]: event.target.value }))} required={field.required} min={field.type === 'number' ? '0' : undefined} step={field.type === 'number' ? '0.01' : undefined} type={field.type || 'text'} value={formData[field.key] || ''} />
-                    )}
-                  </label>
-                ))}
-                {activeModuleId === 'employees' && (
-                  <label className="hr-record-field wide">
-                    <span>Upload employee document{editingRecord?.data.documentFileName ? ` · current: ${editingRecord.data.documentFileName}` : ''}</span>
-                    <input accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} type="file" />
-                  </label>
-                )}
+      {/* Main Content Area */}
+      {activeTab === 'employees' && (
+        <div className="hr-employee-directory-view">
+          {/* Top KPI Cards (Mandatory Feature 1) */}
+          <div className="hr-dashboard-kpis">
+            <div className="hr-kpi-metric-card blue">
+              <div className="hr-metric-top">
+                <span>Total Employees</span>
+                <span className="hr-metric-icon"><Icon name="users" size={18} /></span>
               </div>
-              <div className="hr-record-form-actions"><Button onClick={() => { setEditingRecord(null); setShowForm(false); setDocumentFile(null) }}>Cancel</Button><Button className="p" disabled={!storageReady} type="submit"><Icon name="check" size={15} /> Save record</Button></div>
-            </form>
+              <strong className="hr-metric-number">{stats.total}</strong>
+              <small className="hr-metric-sub">Registered across all branches</small>
+            </div>
+
+            <div className="hr-kpi-metric-card green">
+              <div className="hr-metric-top">
+                <span>Active Employees</span>
+                <span className="hr-metric-icon"><Icon name="check" size={18} /></span>
+              </div>
+              <strong className="hr-metric-number">{stats.active}</strong>
+              <small className="hr-metric-sub">
+                {stats.total > 0 ? `${Math.round((stats.active / stats.total) * 100)}% of workforce` : 'Active status'}
+              </small>
+            </div>
+
+            <div className="hr-kpi-metric-card gray">
+              <div className="hr-metric-top">
+                <span>Inactive Employees</span>
+                <span className="hr-metric-icon"><Icon name="user-minus" size={18} /></span>
+              </div>
+              <strong className="hr-metric-number">{stats.inactive}</strong>
+              <small className="hr-metric-sub">Archived or resigned</small>
+            </div>
+
+            <div className="hr-kpi-metric-card amber">
+              <div className="hr-metric-top">
+                <span>On Leave</span>
+                <span className="hr-metric-icon"><Icon name="clock" size={18} /></span>
+              </div>
+              <strong className="hr-metric-number">{stats.onLeave}</strong>
+              <small className="hr-metric-sub">Annual or medical absence</small>
+            </div>
+
+            <div className="hr-kpi-metric-card purple">
+              <div className="hr-metric-top">
+                <span>New Employees</span>
+                <span className="hr-metric-icon"><Icon name="user-plus" size={18} /></span>
+              </div>
+              <strong className="hr-metric-number">{stats.newEmployees}</strong>
+              <small className="hr-metric-sub">Joined in the last 90 days</small>
+            </div>
+          </div>
+
+          {/* Directory Action & Filter Bar */}
+          <div className="hr-directory-control-bar">
+            {/* Search Input */}
+            <div className="hr-search-wrap">
+              <Icon name="search" size={16} />
+              <input
+                type="text"
+                placeholder="Search by name, serial number, ID/Iqama, or email…"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              />
+              {search && (
+                <button className="hr-clear-search" onClick={() => setSearch('')} type="button">
+                  <Icon name="close" size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Dropdowns */}
+            <div className="hr-filters-wrap">
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                title="Filter by status"
+              >
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="On leave">On leave</option>
+              </select>
+
+              <select
+                value={departmentFilter}
+                onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1) }}
+                title="Filter by department"
+              >
+                <option value="">All Departments</option>
+                {filterOptions.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              <select
+                value={positionFilter}
+                onChange={(e) => { setPositionFilter(e.target.value); setPage(1) }}
+                title="Filter by position"
+              >
+                <option value="">All Positions</option>
+                {filterOptions.positions.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <select
+                value={nationalityFilter}
+                onChange={(e) => { setNationalityFilter(e.target.value); setPage(1) }}
+                title="Filter by nationality"
+              >
+                <option value="">All Nationalities</option>
+                {filterOptions.nationalities.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+
+            {/* View Mode Toggle & Primary Actions */}
+            <div className="hr-actions-wrap">
+              <div className="hr-view-mode-toggle">
+                <button
+                  type="button"
+                  className={`hr-mode-btn ${viewMode === 'table' ? 'active' : ''}`}
+                  onClick={() => setViewMode('table')}
+                  title="Structured Table View"
+                >
+                  <Icon name="list" size={16} />
+                </button>
+                <button
+                  type="button"
+                  className={`hr-mode-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                  onClick={() => setViewMode('cards')}
+                  title="Profile Cards View"
+                >
+                  <Icon name="grid" size={16} />
+                </button>
+              </div>
+
+              <button className="hr-btn-secondary" onClick={downloadEmployeeTemplate} type="button" title="Download standard Excel template">
+                <Icon name="download" size={14} /> Download template employee
+              </button>
+
+              <button className="hr-btn-secondary" onClick={() => setIsImportModalOpen(true)} type="button">
+                <Icon name="upload" size={14} /> Import from Excel
+              </button>
+
+              <button className="hr-btn-primary" onClick={handleOpenCreateForm} type="button">
+                <Icon name="plus" size={15} /> Add Employee
+              </button>
+
+              <button className="hr-btn-export" onClick={exportEmployees} type="button" title="Export matching employees to CSV">
+                <Icon name="file-text" size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Results Summary Bar */}
+          <div className="hr-results-meta">
+            <span>
+              Showing <strong>{filteredEmployees.length}</strong> employee(s)
+              {(search || statusFilter || departmentFilter || positionFilter || nationalityFilter) && (
+                <button
+                  className="hr-clear-all-filters"
+                  onClick={() => {
+                    setSearch('')
+                    setStatusFilter('')
+                    setDepartmentFilter('')
+                    setPositionFilter('')
+                    setNationalityFilter('')
+                  }}
+                  type="button"
+                >
+                  Clear filters
+                </button>
+              )}
+            </span>
+
+            <div className="hr-sort-controls">
+              <span>Sort by:</span>
+              <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
+                <option value="name">Name</option>
+                <option value="serialNumber">Serial Number</option>
+                <option value="startDate">Start Date</option>
+                <option value="salary">Salary</option>
+                <option value="department">Department</option>
+              </select>
+              <button
+                type="button"
+                className="hr-sort-order-btn"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                <Icon name={sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Table View */}
+          {viewMode === 'table' && (
+            <div className="hr-table-container">
+              {paginatedEmployees.length > 0 ? (
+                <table className="hr-main-table">
+                  <thead>
+                    <tr>
+                      <th>Serial No</th>
+                      <th>Employee Name</th>
+                      <th>Department &amp; Position</th>
+                      <th>Status</th>
+                      <th>Contact Details</th>
+                      <th>Nationality / Type</th>
+                      <th>Monthly Salary</th>
+                      <th>Documents</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedEmployees.map((emp) => {
+                      const d = emp.data || {}
+                      const docs = Array.isArray(d.documents) ? d.documents : []
+                      const initials = (d.name || 'E')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase()
+
+                      return (
+                        <tr key={emp.id} className="hr-table-row">
+                          <td>
+                            <span className="hr-table-serial">{d.serialNumber || d.employeeId || '—'}</span>
+                          </td>
+                          <td>
+                            <div className="hr-table-name-cell">
+                              <span className="hr-mini-avatar">{initials}</span>
+                              <div>
+                                <strong
+                                  className="hr-clickable-name"
+                                  onClick={() => handleOpenProfile(emp)}
+                                >
+                                  {d.name || 'Unnamed Employee'}
+                                </strong>
+                                <small>{[d.company, d.branch].filter(Boolean).join(' · ') || 'Natheelco'}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="hr-table-job-cell">
+                              <strong>{d.position || d.jobTitle || 'Unassigned'}</strong>
+                              <small>{d.department || 'General'}</small>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`hr-status-pill ${d.status || 'Active'}`}>
+                              {d.status || 'Active'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="hr-table-contact-cell">
+                              {d.email && <span><Icon name="mail" size={12} /> {d.email}</span>}
+                              {d.phone && <span><Icon name="phone" size={12} /> {d.phone}</span>}
+                            </div>
+                          </td>
+                          <td>
+                            <span>{d.nationality || '—'}</span>
+                            <small className="hr-type-tag">{d.foreignOrLocal || 'Local'}</small>
+                          </td>
+                          <td>
+                            <strong className="hr-salary-text">
+                              {d.monthlySalary ? `${Number(d.monthlySalary).toLocaleString()} SAR` : '—'}
+                            </strong>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="hr-doc-count-pill"
+                              onClick={() => { handleOpenProfile(emp); /* Opens with documents tab */ }}
+                              title="View uploaded documents"
+                            >
+                              <Icon name="file-text" size={13} /> {docs.length}
+                            </button>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div className="hr-row-action-buttons">
+                              <button
+                                type="button"
+                                className="hr-action-icon-btn"
+                                onClick={() => handleOpenProfile(emp)}
+                                title="View Profile"
+                              >
+                                <Icon name="user" size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="hr-action-icon-btn"
+                                onClick={() => handleOpenEditForm(emp)}
+                                title="Edit Employee"
+                              >
+                                <Icon name="edit" size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="hr-action-icon-btn"
+                                onClick={() => downloadSingleEmployee(emp)}
+                                title="Download Information"
+                              >
+                                <Icon name="download" size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="hr-action-icon-btn danger"
+                                onClick={() => setDeleteConfirmEmployee(emp)}
+                                title="Delete Employee"
+                              >
+                                <Icon name="trash" size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="hr-empty-directory">
+                  <span className="hr-empty-icon"><Icon name="users" size={40} /></span>
+                  <h3>No Employees Found</h3>
+                  <p>
+                    {search || statusFilter || departmentFilter
+                      ? 'No employees matched your search or active filters. Try adjusting your filter parameters.'
+                      : 'Your employee directory is empty. Register a new employee or import an Excel spreadsheet to begin.'}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    <Button className="p" onClick={handleOpenCreateForm}>
+                      <Icon name="plus" size={14} /> Add First Employee
+                    </Button>
+                    <Button onClick={() => setIsImportModalOpen(true)}>
+                      <Icon name="upload" size={14} /> Import from Excel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
-          {moduleRecords.length ? (
-            <div className="hr-record-list">
-              {moduleRecords.map((record) => {
-                const title = record.data.name || record.data.employee || record.data.position || record.data.policy || record.data.course || record.data.employeeId || 'HR record'
-                const attendanceToday = record.module === 'employees'
-                  ? liveRecords.find((item) => item.module === 'attendance' && item.data.employee === record.data.name && item.data.date === TODAY())
-                  : null
-                return (
-                  <article className="hr-record-card" key={record.id}>
-                    <div className="hr-record-card-heading"><div><span className={`hr-module-icon ${activeModule.tone}`}><Icon name={activeModule.icon} size={17} /></span>
-                      <div><h3>{title}</h3><small>{[record.data.company, record.data.branch].filter(Boolean).join(' · ') || 'Unassigned'} · {new Date(record.updatedAt || record.createdAt).toLocaleString()}</small></div></div>
-                      <div><Button onClick={() => startEdit(record)}><Icon name="edit" size={14} /> Edit</Button>
-                        {record.module === 'employees' && !record.archivedAt && <Button disabled={Boolean(attendanceToday?.data.checkOut)} onClick={() => toggleAttendance(record)}>{attendanceToday?.data.checkIn ? 'Check out' : 'Check in'}</Button>}
-                        {record.module === 'employees' && record.data.documentFileId && <Button onClick={() => downloadEmployeeDocument(record)}>Download document</Button>}
-                        {record.module === 'payroll' && <Button onClick={() => printPayslip(record)}>Generate payslip</Button>}
-                        {record.module === 'leave' && record.data.status === 'Pending' && <><Button onClick={() => updateLeaveStatus(record, 'Approved')}>Approve</Button><Button onClick={() => updateLeaveStatus(record, 'Declined')}>Decline</Button></>}
-                        {record.module === 'recruitment' && record.data.stage !== 'Hired' && record.data.candidate && <Button onClick={() => convertCandidate(record)}>Hire</Button>}
-                        <Button onClick={() => toggleArchive(record)}>{record.archivedAt ? 'Restore' : 'Archive'}</Button></div></div>
-                    <dl>{activeModule.fields.filter((field) => record.data[field.key]).map((field) => <div key={field.key}><dt>{field.label}</dt><dd>{record.data[field.key]}</dd></div>)}</dl>
-                    {record.module === 'payroll' && <p className="hr-payroll-net">Net pay: <b>{formatMoney(asAmount(record.data.basicSalary) + asAmount(record.data.allowances) + asAmount(record.data.overtime) - asAmount(record.data.deductions) - asAmount(record.data.advances))}</b></p>}
-                    {record.archivedAt && <p className="hr-archived-label">Archived {new Date(record.archivedAt).toLocaleDateString()}</p>}
-                  </article>
-                )
-              })}
+          {/* Cards View */}
+          {viewMode === 'cards' && (
+            <div className="hr-cards-grid-wrapper">
+              {paginatedEmployees.length > 0 ? (
+                <div className="hr-employee-cards-grid">
+                  {paginatedEmployees.map((emp) => {
+                    const d = emp.data || {}
+                    const docs = Array.isArray(d.documents) ? d.documents : []
+                    const initials = (d.name || 'E')
+                      .split(' ')
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()
+
+                    return (
+                      <article className="hr-emp-profile-card" key={emp.id}>
+                        <div className="hr-card-top-bar">
+                          <span className="hr-card-serial">{d.serialNumber || d.employeeId}</span>
+                          <span className={`hr-status-pill ${d.status || 'Active'}`}>{d.status || 'Active'}</span>
+                        </div>
+
+                        <div className="hr-card-hero">
+                          <div className="hr-card-avatar">{initials}</div>
+                          <div>
+                            <h3 onClick={() => handleOpenProfile(emp)}>{d.name || 'Unnamed Employee'}</h3>
+                            <p className="hr-card-role">{d.position || d.jobTitle || 'Unassigned Position'}</p>
+                            <small className="hr-card-dept">{d.department || 'Operations'} · {d.company || 'Natheelco'}</small>
+                          </div>
+                        </div>
+
+                        <div className="hr-card-details">
+                          <div>
+                            <small>Monthly Salary</small>
+                            <strong>{d.monthlySalary ? `${Number(d.monthlySalary).toLocaleString()} SAR` : '—'}</strong>
+                          </div>
+                          <div>
+                            <small>Start Date</small>
+                            <span>{d.startDate || d.contractStart || '—'}</span>
+                          </div>
+                          <div>
+                            <small>Nationality</small>
+                            <span>{d.nationality || '—'} ({d.foreignOrLocal || 'Local'})</span>
+                          </div>
+                          <div>
+                            <small>Documents</small>
+                            <span>{docs.length} uploaded</span>
+                          </div>
+                        </div>
+
+                        <div className="hr-card-contact-strip">
+                          {d.email && <span title={d.email}><Icon name="mail" size={13} /> {d.email}</span>}
+                          {d.phone && <span title={d.phone}><Icon name="phone" size={13} /> {d.phone}</span>}
+                        </div>
+
+                        <div className="hr-card-footer-actions">
+                          <button
+                            type="button"
+                            className="hr-card-btn"
+                            onClick={() => handleOpenProfile(emp)}
+                          >
+                            <Icon name="user" size={14} /> Profile
+                          </button>
+                          <button
+                            type="button"
+                            className="hr-card-btn"
+                            onClick={() => handleOpenEditForm(emp)}
+                          >
+                            <Icon name="edit" size={14} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="hr-card-btn"
+                            onClick={() => downloadSingleEmployee(emp)}
+                            title="Download info"
+                          >
+                            <Icon name="download" size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="hr-card-btn danger"
+                            onClick={() => setDeleteConfirmEmployee(emp)}
+                            title="Delete"
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="hr-empty-directory">
+                  <span className="hr-empty-icon"><Icon name="users" size={40} /></span>
+                  <h3>No Employees Found</h3>
+                  <p>Try adjusting your search query or filters.</p>
+                </div>
+              )}
             </div>
-          ) : !showForm ? (
-            <div className="hr-record-empty"><span className={`hr-module-icon ${activeModule.tone}`}><Icon name={activeModule.icon} size={21} /></span>
-              <h3>{search ? 'No matching records' : `No ${activeModule.title.toLowerCase()} records yet`}</h3><p>Try changing your filters or add a record to get started.</p>
-              <Button className="p" disabled={!storageReady} onClick={() => startCreate()}><Icon name="plus" size={15} /> Add record</Button></div>
-          ) : null}
-          <p className="hr-record-storage-note"><Icon name="info" size={14} /> Protect payroll and personal information using your approved company storage, backup, and access policies.</p>
-        </section>
+          )}
+
+          {/* Pagination Controls */}
+          {filteredEmployees.length > 0 && (
+            <div className="hr-pagination-bar">
+              <div className="hr-page-size-selector">
+                <span>Rows per page:</span>
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+
+              <div className="hr-pagination-info">
+                <span>
+                  Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({filteredEmployees.length} total)
+                </span>
+
+                <div className="hr-pagination-buttons">
+                  <button
+                    type="button"
+                    className="hr-page-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <Icon name="chevron-left" size={16} /> Previous
+                  </button>
+                  <button
+                    type="button"
+                    className="hr-page-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next <Icon name="chevron-right" size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
-      <datalist id="hr-employee-options">{employeeNames.map((name) => <option key={name} value={name} />)}</datalist>
-    </section>
+
+      {/* Submodule: Attendance */}
+      {activeTab === 'attendance' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>Attendance &amp; Time Tracking</h2>
+              <p>Daily check-ins, check-outs, absences, and overtime hours.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-table-container">
+              <table className="hr-main-table">
+                <thead>
+                  <tr><th>Date</th><th>Employee</th><th>Check-in</th><th>Check-out</th><th>Working Hours</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {scopedRecords.filter((r) => r.module === 'attendance').length > 0 ? (
+                    scopedRecords.filter((r) => r.module === 'attendance').map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.data.date}</td>
+                        <td><strong>{r.data.employee}</strong></td>
+                        <td>{r.data.checkIn || '—'}</td>
+                        <td>{r.data.checkOut || '—'}</td>
+                        <td>{r.data.workingHours || 8} hrs</td>
+                        <td><span className="hr-status-pill Active">{r.data.status}</span></td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30 }} className="mu">No attendance records registered yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodule: Leave */}
+      {activeTab === 'leave' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>Leave Management &amp; Approvals</h2>
+              <p>Annual vacation requests, sick leaves, and remaining balance days.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-table-container">
+              <table className="hr-main-table">
+                <thead>
+                  <tr><th>Employee</th><th>Leave Type</th><th>Start Date</th><th>End Date</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {scopedRecords.filter((r) => r.module === 'leave').length > 0 ? (
+                    scopedRecords.filter((r) => r.module === 'leave').map((r) => (
+                      <tr key={r.id}>
+                        <td><strong>{r.data.employee}</strong></td>
+                        <td>{r.data.leaveType}</td>
+                        <td>{r.data.startDate}</td>
+                        <td>{r.data.endDate}</td>
+                        <td><span className={`hr-status-pill ${r.data.status === 'Approved' ? 'Active' : 'On leave'}`}>{r.data.status}</span></td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30 }} className="mu">No leave requests recorded yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodule: Payroll */}
+      {activeTab === 'payroll' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>Payroll &amp; Compensation Records</h2>
+              <p>Monthly salary runs, allowances, overtime, and payslips.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-table-container">
+              <table className="hr-main-table">
+                <thead>
+                  <tr><th>Employee</th><th>Period</th><th>Basic Salary</th><th>Allowances</th><th>Overtime</th><th>Net Pay</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {scopedRecords.filter((r) => r.module === 'payroll').length > 0 ? (
+                    scopedRecords.filter((r) => r.module === 'payroll').map((r) => {
+                      const net = asAmount(r.data.basicSalary) + asAmount(r.data.allowances) + asAmount(r.data.overtime) - asAmount(r.data.deductions)
+                      return (
+                        <tr key={r.id}>
+                          <td><strong>{r.data.employee}</strong></td>
+                          <td>{r.data.period}</td>
+                          <td>{formatMoney(r.data.basicSalary)}</td>
+                          <td>{formatMoney(r.data.allowances)}</td>
+                          <td>{formatMoney(r.data.overtime)}</td>
+                          <td><strong>{formatMoney(net)}</strong></td>
+                          <td><span className="hr-status-pill Active">{r.data.status}</span></td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: 30 }} className="mu">No payroll records logged yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodule: Holidays */}
+      {activeTab === 'holidays' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>Public &amp; Company Holidays</h2>
+              <p>Official calendar holidays and branch closures across Saudi Arabia.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-table-container">
+              <table className="hr-main-table">
+                <thead>
+                  <tr><th>Holiday Name</th><th>Start Date</th><th>End Date</th><th>Type</th><th>Applies To</th></tr>
+                </thead>
+                <tbody>
+                  {scopedRecords.filter((r) => r.module === 'holidays').length > 0 ? (
+                    scopedRecords.filter((r) => r.module === 'holidays').map((r) => (
+                      <tr key={r.id}>
+                        <td><strong>{r.data.name}</strong></td>
+                        <td>{r.data.startDate}</td>
+                        <td>{r.data.endDate}</td>
+                        <td>{r.data.type || 'Public Holiday'}</td>
+                        <td>{r.data.company || 'All Companies'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30 }} className="mu">No holidays scheduled yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodule: Recruitment */}
+      {activeTab === 'recruitment' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>Recruitment &amp; Vacancies</h2>
+              <p>Open roles, candidates, interviews, and hiring pipeline.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-table-container">
+              <table className="hr-main-table">
+                <thead>
+                  <tr><th>Position</th><th>Department</th><th>Candidate Name</th><th>Hiring Stage</th><th>Interview Date</th></tr>
+                </thead>
+                <tbody>
+                  {scopedRecords.filter((r) => r.module === 'recruitment').length > 0 ? (
+                    scopedRecords.filter((r) => r.module === 'recruitment').map((r) => (
+                      <tr key={r.id}>
+                        <td><strong>{r.data.position}</strong></td>
+                        <td>{r.data.department || '—'}</td>
+                        <td>{r.data.candidate || '—'}</td>
+                        <td><span className="hr-status-pill Active">{r.data.stage}</span></td>
+                        <td>{r.data.nextInterview || '—'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30 }} className="mu">No recruitment records active.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodule: Audit Activity */}
+      {activeTab === 'activity' && (
+        <div className="hr-submodule-view">
+          <div className="hr-submodule-header">
+            <div>
+              <h2>HR Audit &amp; Activity Log</h2>
+              <p>Permanent record of employee onboarding, updates, document uploads, and deletions.</p>
+            </div>
+          </div>
+          <div className="hr-submodule-content">
+            <div className="hr-activity-list">
+              {records
+                .filter((r) => r.module === 'activity')
+                .sort((a, b) => String(b.data?.at || '').localeCompare(String(a.data?.at || '')))
+                .slice(0, 30)
+                .map((item) => (
+                  <div className="hr-activity-item" key={item.id}>
+                    <span className="hr-activity-icon"><Icon name="database" size={15} /></span>
+                    <div className="hr-activity-text">
+                      <strong>{item.data?.action}</strong> {item.data?.label}
+                      <small>{[item.data?.company, item.data?.branch].filter(Boolean).join(' · ')} · {new Date(item.data?.at || item.createdAt).toLocaleString()}</small>
+                    </div>
+                  </div>
+                ))}
+              {!records.some((r) => r.module === 'activity') && (
+                <p className="mu" style={{ padding: 30, textAlign: 'center' }}>All operations performed in HR will be permanently recorded here.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmEmployee && (
+        <div className="hr-modal-overlay" onClick={() => setDeleteConfirmEmployee(null)}>
+          <div className="hr-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="hr-confirm-icon"><Icon name="alert-triangle" size={32} /></div>
+            <h3>Delete Employee Record?</h3>
+            <p>
+              Are you sure you want to permanently delete <strong>{deleteConfirmEmployee.data?.name}</strong> (Serial: {deleteConfirmEmployee.data?.serialNumber})?
+              All attached documents and database records will be removed. This action cannot be undone.
+            </p>
+            <div className="hr-confirm-actions">
+              <Button onClick={() => setDeleteConfirmEmployee(null)}>Cancel</Button>
+              <Button className="p danger" onClick={() => handleDeleteEmployee(deleteConfirmEmployee)}>
+                <Icon name="trash" size={15} /> Confirm Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Registration & Edit Form Modal */}
+      <EmployeeFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        employeeToEdit={employeeToEdit}
+        existingEmployees={allEmployees}
+        onSave={handleSaveEmployee}
+        defaultCompany={companyFilter}
+        defaultBranch={branchFilter}
+      />
+
+      {/* Dedicated Employee Profile Modal */}
+      <EmployeeProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        employee={selectedProfileEmployee}
+        onEdit={(emp) => handleOpenEditForm(emp)}
+        onDelete={(emp) => setDeleteConfirmEmployee(emp)}
+        onEmployeeUpdated={handleEmployeeUpdated}
+      />
+
+      {/* Excel Employee Import Modal */}
+      <EmployeeImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        existingEmployees={allEmployees}
+        onImportComplete={async () => {
+          await loadRecords()
+          showToast('Employees successfully imported into the database!')
+        }}
+        company={companyFilter}
+        branch={branchFilter}
+      />
+    </div>
   )
 }
 

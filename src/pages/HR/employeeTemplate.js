@@ -293,3 +293,59 @@ export async function parseEmployeeExcel(file, defaultCompany = '', defaultBranc
 
   return parsed
 }
+
+export function validateExcelRows(employees, existingEmployees = []) {
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const seenInFile = new Map()
+
+  return employees.map((emp, index) => {
+    const errors = []
+    const warnings = []
+    const d = emp.data || emp
+    const serial = String(d.serialNumber || d.employeeId || '').trim().toUpperCase()
+
+    if (!d.firstName) errors.push('First name is required.')
+    if (!d.lastName) errors.push('Last name is required.')
+    if (!serial) errors.push('Serial number is required.')
+    if (!d.dob) errors.push('Date of birth is required.')
+    if (!d.email) errors.push('Email address is required.')
+    else if (!EMAIL_REGEX.test(d.email)) errors.push('Invalid email format.')
+
+    let isDuplicate = false
+    if (serial) {
+      if (seenInFile.has(serial)) {
+        isDuplicate = true
+        errors.push(`Duplicate serial in sheet (same as row ${seenInFile.get(serial) + 1}).`)
+      } else {
+        seenInFile.set(serial, index)
+      }
+
+      const dbMatch = existingEmployees.find((e) => {
+        const otherSerial = String(e.data?.serialNumber || e.data?.employeeId || '').trim().toUpperCase()
+        return otherSerial === serial
+      })
+      if (dbMatch) {
+        isDuplicate = true
+        errors.push(`Serial already exists in database (${dbMatch.data?.name || 'existing employee'}).`)
+      }
+    }
+
+    if (!d.phone) warnings.push('Phone number missing.')
+    if (!d.position) warnings.push('Position missing.')
+    if (!d.monthlySalary) warnings.push('Monthly salary empty.')
+
+    const status = errors.length > 0 ? (isDuplicate ? 'duplicate' : 'error') : 'ready'
+
+    return {
+      index,
+      employee: emp,
+      serial,
+      status,
+      errors,
+      warnings,
+      selected: status === 'ready',
+    }
+  })
+}
+
+
