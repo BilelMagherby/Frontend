@@ -30,7 +30,6 @@ export const PAGES = [
   ['clickup', 'clickup', 'ClickUp'],
   ['projects', 'projects', 'Projects'],
   ['team', 'team', 'Team & KPIs'],
-  ['hr', 'hr', 'HR'],
   ['foodics', 'folder', 'Foodics Management'],
   ['roles', 'roles', 'Roles'],
   ['activity', 'database', 'Activity Log'],
@@ -38,10 +37,11 @@ export const PAGES = [
 
 export const ROLE_PERMISSION_PAGES = PAGES.filter(([key]) => !['roles', 'activity'].includes(key))
 
-export const ALL_ROLE_PERMISSIONS = [...ROLE_PERMISSION_PAGES.map(([key]) => key), 'gulf', 'cashbank']
+export const ALL_ROLE_PERMISSIONS = [...ROLE_PERMISSION_PAGES.map(([key]) => key), 'gulf', 'cashbank', 'hr']
 
 export const ROLE_PERMISSION_LABELS = Object.fromEntries([
   ...ROLE_PERMISSION_PAGES.map(([key, , label]) => [key, label]),
+  ['hr', 'HR'],
   ['gulf', 'Natheel Gulf'],
   ['cashbank', 'Cash & Bank'],
 ])

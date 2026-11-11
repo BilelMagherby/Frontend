@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../../components/ui/Icon.jsx'
 import { Button } from '../../components/ui/Button.jsx'
-import { api } from '../../services/api.js'
+import { api, request } from '../../services/api.js'
+import { downloadEmployeeTemplate, parseEmployeeExcel } from './employeeTemplate.js'
 
 const HR_COMPANIES = ['Natheelco', 'Hajiss Café', 'Odun Pide', 'Ghalia', 'Dani Designs']
 
@@ -18,17 +19,35 @@ const MODULES = [
     icon: 'users',
     tone: 'blue',
     fields: [
-      { key: 'employeeId', label: 'Employee ID', required: true },
+      { key: 'employeeId', label: 'Employee ID / Serial number', required: true },
       { key: 'name', label: 'Full name', required: true },
-      { key: 'email', label: 'Email', type: 'email' },
-      { key: 'phone', label: 'Contact number', type: 'tel' },
+      { key: 'dob', label: 'Date of birth', type: 'date' },
+      { key: 'email', label: 'Email address', type: 'email' },
+      { key: 'phone', label: 'Phone number', type: 'tel' },
+      { key: 'foreignOrLocal', label: 'Foreign / Local', type: 'select', options: ['Local', 'Foreign'] },
+      { key: 'nationality', label: 'Nationality' },
+      { key: 'iqamaNumber', label: 'ID / Iqama number' },
+      { key: 'passportNumber', label: 'Passport number' },
+      { key: 'address', label: 'Address', type: 'textarea' },
+      { key: 'position', label: 'Position' },
       { key: 'jobTitle', label: 'Job title' },
       { key: 'department', label: 'Department' },
+      { key: 'qualification', label: 'Qualification' },
       { key: 'status', label: 'Employment status', type: 'select', options: ['Active', 'Inactive', 'On leave'], required: true },
       { key: 'contractType', label: 'Contract type', type: 'select', options: ['Permanent', 'Fixed term', 'Part-time', 'Temporary', 'Other'] },
-      { key: 'contractStart', label: 'Contract start', type: 'date' },
-      { key: 'contractEnd', label: 'Contract end', type: 'date' },
-      { key: 'basicSalary', label: 'Basic monthly salary (SAR)', type: 'number' },
+      { key: 'startDate', label: 'Start date', type: 'date' },
+      { key: 'endDate', label: 'End date', type: 'date' },
+      { key: 'workingDays', label: 'Working days' },
+      { key: 'monthlySalary', label: 'Monthly salary (SAR)', type: 'number' },
+      { key: 'annualSalary', label: 'Annual salary (SAR)', type: 'number' },
+      { key: 'overtimeRate', label: 'Overtime rate per hour (SAR)', type: 'number' },
+      { key: 'holidayDays', label: 'Number of holidays days', type: 'number' },
+      { key: 'openingHolidayBalance', label: 'Opening holiday balance', type: 'number' },
+      { key: 'bankName', label: 'Bank name' },
+      { key: 'accountNumber', label: 'Bank account number' },
+      { key: 'iban', label: 'IBAN' },
+      { key: 'routeSwift', label: 'Route Swift' },
+      { key: 'bankCountry', label: 'Bank country' },
       { key: 'allowances', label: 'Monthly allowances (SAR)', type: 'number' },
       { key: 'documents', label: 'Document names or secure file references', type: 'textarea' },
     ],
@@ -211,6 +230,7 @@ export function HRWorkspace() {
   const [branchFilter, setBranchFilter] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [documentFile, setDocumentFile] = useState(null)
+  const [importStatus, setImportStatus] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -325,6 +345,56 @@ export function HRWorkspace() {
       setShowForm(false)
     } catch (error) {
       setStorageError(`Could not save HR record: ${error.message}`)
+    }
+  }
+
+  async function handleEmployeeFileUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    event.target.value = ''
+    setImportStatus({ type: 'busy', message: `Processing "${file.name}"…` })
+    try {
+      const parsedEmployees = await parseEmployeeExcel(file, companyFilter, branchFilter)
+      setImportStatus({ type: 'busy', message: `Saving ${parsedEmployees.length} employee(s) to the database…` })
+
+      for (let index = 0; index < parsedEmployees.length; index += 500) {
+        const batch = parsedEmployees.slice(index, index + 500)
+        try {
+          await request('/api/docs?collection=hr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              collection: 'hr',
+              items: batch.map((r) => ({ id: r.id, data: r })),
+            }),
+          })
+        } catch {
+          await Promise.all(batch.map((r) => api.put(`hr/${r.id}`, r)))
+        }
+      }
+
+      const historyRecord = {
+        id: `hr-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        module: 'activity',
+        data: {
+          action: 'Bulk imported',
+          label: `${parsedEmployees.length} employees`,
+          company: companyFilter || 'All companies',
+          branch: branchFilter || '',
+          at: new Date().toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+      }
+      await api.put(`hr/${historyRecord.id}`, historyRecord).catch(() => {})
+
+      setRecords((current) => [...parsedEmployees, ...current, historyRecord])
+      setImportStatus({
+        type: 'success',
+        message: `Successfully imported and saved ${parsedEmployees.length} employee(s) to the database!`,
+      })
+      window.setTimeout(() => setImportStatus(null), 8000)
+    } catch (error) {
+      setImportStatus({ type: 'error', message: error.message || 'Could not parse or import the employee spreadsheet.' })
     }
   }
 
@@ -602,6 +672,38 @@ export function HRWorkspace() {
           </select>
         </label>
       </div>
+
+      {(!activeModule || activeModuleId === 'employees') && (
+        <section aria-label="Bulk employee onboarding" className="hr-bulk-import-block">
+          <div className="hr-bulk-import-info">
+            <span className="hr-bulk-import-icon"><Icon name="users" size={22} /></span>
+            <div className="hr-bulk-import-text">
+              <h3>Bulk Employee Onboarding</h3>
+              <p>Download the standard Excel employee template or upload an Excel file containing General, Personal, Salary, Job &amp; Bank details to register employees directly into the database.</p>
+            </div>
+          </div>
+          <div className="hr-bulk-import-actions">
+            <button className="hr-template-btn" onClick={downloadEmployeeTemplate} type="button">
+              <Icon name="download" size={15} /> Download template employee
+            </button>
+            <label className="hr-upload-label">
+              <Icon name="upload" size={15} /> Upload employee file
+              <input
+                accept=".xlsx,.xls,.csv"
+                onChange={handleEmployeeFileUpload}
+                style={{ display: 'none' }}
+                type="file"
+              />
+            </label>
+          </div>
+          {importStatus && (
+            <div className={`hr-bulk-status ${importStatus.type}`}>
+              <Icon name={importStatus.type === 'success' ? 'check' : importStatus.type === 'error' ? 'alert-triangle' : 'info'} size={15} />
+              <span>{importStatus.message}</span>
+            </div>
+          )}
+        </section>
+      )}
 
       {!activeModule && (
         <>
