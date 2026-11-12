@@ -887,6 +887,8 @@ export function App() {
 
   const activeUser = auth.activeUser || { id: 'admin', name: 'Admin', isAdmin: true }
   const canAccessPage = (pageKey) =>
+    pageKey === 'dash' ||
+    pageKey === 'hr' ||
     activeUser.isAdmin ||
     (pageKey === 'notices'
       ? activeUser.permissions?.some((permission) => ['dash', 'notices'].includes(permission))

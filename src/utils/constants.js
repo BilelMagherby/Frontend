@@ -19,7 +19,7 @@ export const DEFAULT_CONFIG = {
 
 export const PAGES = [
   ['dash', 'dashboard', 'CEO Dashboard'],
-  ['notices', 'bell', 'Announcements'],
+  ['notices', 'bell', 'Announcement'],
   ['mails', 'mail', 'Mails'],
   ['meet', 'google-meet', 'Google Meet'],
   ['zoom', 'zoom', 'Zoom'],
